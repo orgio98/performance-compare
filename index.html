@@ -105,6 +105,9 @@ main{padding:20px 24px 60px;min-width:0}
 .pick-item.on .sw{background:var(--c);border-color:var(--c)}
 .pick-item .pm{display:block;font-weight:600;font-size:13px;line-height:1.3}
 .pick-item .ps{display:block;font-size:11.5px;color:var(--ink-2);line-height:1.3}
+.pick.no-recs .pick-filters,.pick.no-recs .pick-foot{display:none}
+.pick.no-recs .pick-toggle-caret{display:none}
+.pick-empty{font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;align-items:flex-start;gap:8px;padding:4px 0 6px;line-height:1.6}
 .pick-foot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:4px}
 .pick-foot .muted{font-size:12px}
 .field-row.three{grid-template-columns:1fr 1fr 1fr}
@@ -1269,8 +1272,17 @@ function renderSidebar(){
 const FLABEL = { conductor: '지휘자', performer: '연주자', ensemble: '오케스트라' };
 function renderPick(){
   const p = cur(), v = p.view, box = $('#pick');
-  box.classList.toggle('closed', !v.open);
-  $('#pick-toggle').setAttribute('aria-expanded', v.open);
+  const none = !p.recordings.length;
+  box.classList.toggle('closed', !v.open && !none);
+  box.classList.toggle('no-recs', none);
+  $('#pick-toggle').setAttribute('aria-expanded', v.open || none);
+  if (none) {
+    $('#pick-summary').innerHTML = '';
+    $('#pick-list').innerHTML = `<div class="pick-empty">이 작품에는 아직 녹음이 없어요. 녹음을 추가하면 여기서 지휘자·연주자·오케스트라·연도로 비교할 녹음을 고를 수 있어요.<br>
+      이름은 녹음 추가 창에서 드롭다운으로 골라요.<button class="primary small" data-act="add-rec">+ 녹음 추가</button></div>`;
+    $('#pick-hidden').textContent = '';
+    return;
+  }
   for (const k of FKEYS) {
     const el = box.querySelector(`select[data-f="${k}"]`);
     const counts = new Map(); let none = 0;
@@ -1579,6 +1591,7 @@ $('#pick').addEventListener('input', e => {
 $('#pick-sort').addEventListener('change', e => { cur().view.sort = e.target.value; afterSelectionChange(); });
 $('#pick-reset').addEventListener('click', () => { cur().view.f = emptyFilter(); afterSelectionChange(); });
 $('#pick-list').addEventListener('click', e => {
+  if (e.target.closest('[data-act=add-rec]')) { openRecDialog(null); return; }
   const b = e.target.closest('.pick-item'); if (!b) return;
   const v = cur().view, id = b.dataset.id;
   v.excluded = v.excluded.includes(id) ? v.excluded.filter(x => x !== id) : [...v.excluded, id];
