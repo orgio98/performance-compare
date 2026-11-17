@@ -125,6 +125,41 @@ main{padding:20px 24px 60px;min-width:0}
 .combo-n{margin-left:auto;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
 .combo-empty{padding:8px 12px;color:var(--muted)}
 .combo-opt mark{background:transparent;color:var(--accent);font-weight:600}
+.url-row{display:flex;gap:6px}
+.url-row input{flex:1;min-width:0}
+dialog.wide{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px)}
+.ds-wrap{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.ds-head{display:flex;justify-content:space-between;align-items:center}
+.ds-head h2{margin:0;font-size:17px}
+.ds-p{margin:0;font-size:13.5px;color:var(--ink-2)}
+.ds-ext{font-size:13px;color:var(--accent);text-decoration:none}
+.ds-guide{font-size:13px;background:var(--surface-2);border-radius:10px;padding:10px 14px}
+.ds-guide summary{cursor:pointer;font-weight:600}
+.ds-guide ol{margin:8px 0;padding-left:20px;display:flex;flex-direction:column;gap:5px}
+.ds-guide a{color:var(--accent)}
+.ds-guide code{background:var(--surface);padding:1px 5px;border-radius:4px;font-size:12px}
+dialog form.ds-bar{display:flex;flex-direction:row;gap:6px;padding:0}
+.ds-bar input{flex:1;min-width:0;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:7px 10px}
+dialog .ds-bar select{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:6px 8px;width:auto;flex:none}
+.ds-bar button{flex:none}
+.ds-tip{font-size:12.5px;color:var(--ink-2)}
+.ds-results{display:flex;flex-direction:column;gap:6px;min-height:80px}
+.ds-item{display:grid;grid-template-columns:132px 1fr auto;gap:12px;align-items:center;padding:8px;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+.ds-item.added{background:var(--accent-soft)}
+.ds-thumb{position:relative;width:132px;aspect-ratio:16/9;border-radius:6px;overflow:hidden;background:#000}
+.ds-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ds-thumb span{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.8);color:#fff;font-size:11px;padding:0 4px;border-radius:3px;font-variant-numeric:tabular-nums}
+.ds-info{min-width:0;display:flex;flex-direction:column;gap:3px}
+.ds-title{font-weight:600;font-size:13.5px;color:var(--ink);text-decoration:none;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ds-title:hover{text-decoration:underline}
+.ds-meta{font-size:12px;color:var(--muted)}
+.ds-tags{display:flex;flex-wrap:wrap;gap:4px}
+.ds-tags span{font-size:11.5px;background:var(--surface-2);border-radius:999px;padding:1px 8px;color:var(--ink-2)}
+.ds-act{display:flex;flex-direction:column;gap:4px;align-items:stretch}
+.ds-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ds-foot .spacer{flex:1}
+.ds-msg{padding:24px;text-align:center;color:var(--ink-2);font-size:13.5px;border:1px dashed var(--border-strong);border-radius:10px}
+@media (max-width:640px){.ds-item{grid-template-columns:96px 1fr}.ds-thumb{width:96px}.ds-act{grid-column:1/-1;flex-direction:row}}
 dialog select{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:6px 9px;width:100%}
 
 /* listen */
@@ -276,7 +311,7 @@ dialog h2{margin:0;font-size:17px}
       <h4>사용 순서</h4>
       <ol>
         <li>작품과 구간(악장·변주 등)을 만들어요</li>
-        <li>유튜브/유튜브 뮤직 링크로 녹음을 추가하고 지휘자·연주자·연도를 적어요</li>
+        <li>‘유튜브에서 녹음 찾기’로 녹음을 찾아 추가해요 (연주자·연도는 제목에서 읽어 채워요)</li>
         <li>‘비교할 녹음 고르기’에서 비교할 녹음을 골라요</li>
         <li>각 녹음에서 구간 시작 시간을 표시해요</li>
         <li>같은 구간을 바꿔 들으며 비교해요</li>
@@ -301,7 +336,8 @@ dialog h2{margin:0;font-size:17px}
         </div>
         <div class="row">
           <button id="btn-edit-piece">작품 편집</button>
-          <button id="btn-add-rec" class="primary">+ 녹음 추가</button>
+          <button id="btn-add-rec" title="유튜브 링크를 직접 붙여넣어 추가">+ 링크로 추가</button>
+          <button id="btn-find" class="primary">유튜브에서 녹음 찾기</button>
         </div>
       </div>
       <div id="pick" class="pick">
@@ -406,7 +442,7 @@ dialog h2{margin:0;font-size:17px}
 <dialog id="dlg-rec">
   <form id="form-rec">
     <h2><span id="dlg-rec-title">녹음 추가</span> <small class="muted" style="font-size:12.5px;font-weight:400">편성: <span id="rec-kind"></span> (작품 편집에서 바꿀 수 있어요)</small></h2>
-    <label class="field"><span>유튜브 또는 유튜브 뮤직 링크</span><input type="text" id="f-url" placeholder="https://music.youtube.com/watch?v=…" required autocomplete="off">
+    <label class="field"><span>유튜브 또는 유튜브 뮤직 링크</span><span class="url-row"><input type="text" id="f-url" placeholder="https://music.youtube.com/watch?v=…" required autocomplete="off"><button type="button" id="btn-find-url">유튜브에서 찾기</button></span>
       <small>곡 하나짜리 링크(watch?v=…, youtu.be/…)를 넣어주세요. 링크에 시작 시간(&amp;t=)이 있으면 첫 구간 시작으로 써요.</small></label>
     <div class="people" id="people">
       <label class="field" data-k="performer"><span>연주자</span><input type="text" id="f-performer" autocomplete="off"></label>
@@ -426,6 +462,44 @@ dialog h2{margin:0;font-size:17px}
       <div class="row"><button type="button" data-close>취소</button><button type="submit" class="primary">저장</button></div>
     </div>
   </form>
+</dialog>
+
+<dialog id="dlg-search" class="wide">
+  <div class="ds-wrap">
+    <div class="ds-head"><h2>유튜브에서 녹음 찾기</h2><button type="button" class="ghost small" data-close>닫기</button></div>
+    <div id="ds-setup" hidden>
+      <p class="ds-p">앱 안에서 유튜브를 검색하려면 <b>YouTube Data API 키</b>가 한 번 필요해요. 무료이고, 키는 <b>이 브라우저에만</b> 저장돼요. GitHub에는 올라가지 않아요.</p>
+      <label class="field"><span>API 키</span><input id="ds-key" type="text" placeholder="AIza로 시작하는 키" autocomplete="off" spellcheck="false"></label>
+      <div class="err" id="ds-key-err"></div>
+      <div class="row"><button type="button" id="ds-key-save" class="primary">저장하고 검색</button><a class="ds-ext" id="ds-yt-link" target="_blank" rel="noopener">키 없이 유튜브에서 직접 검색 ↗</a></div>
+      <details class="ds-guide" open><summary>API 키 받는 방법 (5분, 한 번만)</summary>
+        <ol>
+          <li><a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud 콘솔 ↗</a>에 구글 계정으로 들어가서 위쪽에서 <b>새 프로젝트</b>를 만들어요 (이름은 아무거나).</li>
+          <li>왼쪽 메뉴 <b>API 및 서비스 → 라이브러리</b>에서 <b>YouTube Data API v3</b>를 찾아 <b>사용</b>을 눌러요.</li>
+          <li><b>API 및 서비스 → 사용자 인증 정보 → 사용자 인증 정보 만들기 → API 키</b>를 누르면 키가 나와요.</li>
+          <li>키를 누르고 <b>키 제한</b>을 설정해요: 애플리케이션 제한은 <b>웹사이트</b>로 하고 <code>https://orgio98.github.io/*</code>를 추가, API 제한은 <b>YouTube Data API v3</b>만 고르고 저장해요. 이렇게 하면 키가 남에게 보여도 다른 곳에서는 못 써요.</li>
+          <li>키를 복사해서 위 칸에 붙여넣어요.</li>
+        </ol>
+        <p class="muted">무료 사용량은 하루 검색 약 100번이에요. 결제 정보는 넣지 않아도 돼요.</p>
+      </details>
+    </div>
+    <div id="ds-main" hidden>
+      <form id="ds-form" class="ds-bar">
+        <input id="ds-q" type="text" placeholder="예: 베토벤 월광 소나타 켐프" autocomplete="off">
+        <select id="ds-dur" title="영상 길이"><option value="any">길이 전체</option><option value="medium">4~20분</option><option value="long">20분 이상</option></select>
+        <button class="primary" type="submit">검색</button>
+      </form>
+      <div class="ds-tip" id="ds-tip"></div>
+      <div id="ds-results" class="ds-results"></div>
+      <div class="ds-foot">
+        <button type="button" id="ds-more" hidden>더 보기</button>
+        <span id="ds-status" class="muted"></span>
+        <span class="spacer"></span>
+        <a class="ds-ext" id="ds-yt-link2" target="_blank" rel="noopener">유튜브에서 직접 보기 ↗</a>
+        <button type="button" class="ghost small" id="ds-key-change">API 키 변경</button>
+      </div>
+    </div>
+  </div>
 </dialog>
 
 <div id="tooltip" class="tooltip" hidden></div>
@@ -557,16 +631,16 @@ const CAT = (() => {
       마사아키 스즈키|Masaaki Suzuki
       르네 야콥스|René Jacobs`),
     orchestra: L(`
-      베를린 필하모닉|Berliner Philharmoniker
+      베를린 필하모닉|Berliner Philharmoniker · Berlin Philharmonic
       빈 필하모닉|Wiener Philharmoniker · Vienna Philharmonic
-      로열 콘세르트헤바우 오케스트라|Royal Concertgebouw Orchestra
-      바이에른 방송 교향악단|Bavarian Radio Symphony Orchestra
-      드레스덴 슈타츠카펠레|Staatskapelle Dresden
+      로열 콘세르트헤바우 오케스트라|Royal Concertgebouw Orchestra · Concertgebouw
+      바이에른 방송 교향악단|Bavarian Radio Symphony Orchestra · Symphonieorchester des Bayerischen Rundfunks
+      드레스덴 슈타츠카펠레|Staatskapelle Dresden · Dresden Staatskapelle
       베를린 슈타츠카펠레|Staatskapelle Berlin
-      라이프치히 게반트하우스 오케스트라|Gewandhausorchester Leipzig
+      라이프치히 게반트하우스 오케스트라|Gewandhausorchester Leipzig · Leipzig Gewandhaus Orchestra
       북독일 방송 교향악단 (NDR)|NDR Elbphilharmonie Orchester
       밤베르크 교향악단|Bamberger Symphoniker
-      뮌헨 필하모닉|Münchner Philharmoniker
+      뮌헨 필하모닉|Münchner Philharmoniker · Munich Philharmonic
       시카고 교향악단|Chicago Symphony Orchestra
       뉴욕 필하모닉|New York Philharmonic
       클리블랜드 오케스트라|Cleveland Orchestra
@@ -577,9 +651,9 @@ const CAT = (() => {
       런던 심포니 오케스트라|London Symphony Orchestra
       런던 필하모닉 오케스트라|London Philharmonic Orchestra
       필하모니아 오케스트라|Philharmonia Orchestra
-      레닌그라드 필하모닉|Leningrad Philharmonic
+      레닌그라드 필하모닉|Leningrad Philharmonic Orchestra
       상트페테르부르크 필하모닉|St Petersburg Philharmonic
-      체코 필하모닉|Czech Philharmonic
+      체코 필하모닉|Czech Philharmonic · Česká filharmonie
       파리 오케스트라|Orchestre de Paris
       프랑스 국립 오케스트라|Orchestre National de France
       산타 체칠리아 국립 아카데미 오케스트라|Orchestra dell'Accademia Nazionale di Santa Cecilia
@@ -1279,7 +1353,7 @@ function renderPick(){
   if (none) {
     $('#pick-summary').innerHTML = '';
     $('#pick-list').innerHTML = `<div class="pick-empty">이 작품에는 아직 녹음이 없어요. 녹음을 추가하면 여기서 지휘자·연주자·오케스트라·연도로 비교할 녹음을 고를 수 있어요.<br>
-      이름은 녹음 추가 창에서 드롭다운으로 골라요.<button class="primary small" data-act="add-rec">+ 녹음 추가</button></div>`;
+      <span class="row"><button class="primary small" data-act="find">유튜브에서 녹음 찾기</button><button class="small" data-act="add-rec">링크로 직접 추가</button></span></div>`;
     $('#pick-hidden').textContent = '';
     return;
   }
@@ -1347,7 +1421,7 @@ function syncCards(){
   empty.hidden = sel.length > 0;
   empty.innerHTML = p.recordings.length
     ? '<b>비교할 녹음이 선택되지 않았어요</b>위의 ‘비교할 녹음 고르기’에서 녹음을 켜거나 필터를 바꿔보세요.'
-    : '<b>아직 녹음이 없어요</b>‘+ 녹음 추가’를 눌러 유튜브나 유튜브 뮤직 링크를 붙여넣으세요.';
+    : '<b>아직 녹음이 없어요</b>위의 ‘유튜브에서 녹음 찾기’로 검색해서 추가하거나, ‘+ 링크로 추가’에 링크를 붙여넣으세요.';
 }
 function resetPlayer(rec){
   destroyPlayer(rec.id);
@@ -1592,6 +1666,7 @@ $('#pick-sort').addEventListener('change', e => { cur().view.sort = e.target.val
 $('#pick-reset').addEventListener('click', () => { cur().view.f = emptyFilter(); afterSelectionChange(); });
 $('#pick-list').addEventListener('click', e => {
   if (e.target.closest('[data-act=add-rec]')) { openRecDialog(null); return; }
+  if (e.target.closest('[data-act=find]')) { openSearch('add', defaultQuery([])); return; }
   const b = e.target.closest('.pick-item'); if (!b) return;
   const v = cur().view, id = b.dataset.id;
   v.excluded = v.excluded.includes(id) ? v.excluded.filter(x => x !== id) : [...v.excluded, id];
@@ -1857,6 +1932,226 @@ $('#file-import').addEventListener('change', async e => {
     toast(`불러왔어요: 새 작품 ${added}개${replaced ? `, 덮어쓴 작품 ${replaced}개` : ''}`);
   } catch (err) { toast('이 파일은 불러올 수 없어요. 이 앱에서 내보낸 JSON인지 확인해 주세요.'); }
 });
+
+/* ---------- YouTube search (YouTube Data API v3, key kept only in this browser) ---------- */
+const KEY_STORE = 'perf-compare-ytkey';
+const getKey = () => { try { return localStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } };
+const setKey = k => { try { k ? localStorage.setItem(KEY_STORE, k) : localStorage.removeItem(KEY_STORE); } catch (e) {} };
+const fold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const FIELD_OF = { conductor: 'conductor', orchestra: 'ensemble', chamber: 'ensemble', piano: 'performer', keyboard: 'performer', violin: 'performer', cello: 'performer', viola: 'performer', guitar: 'performer', wind: 'performer', voice: 'performer', label: 'label' };
+let nameIndex = null;
+function buildNameIndex(){
+  const entries = [];
+  for (const [list, field] of Object.entries(FIELD_OF)) for (const it of CAT[list]) {
+    const aliases = (it.a || '').split('·').map(x => x.trim()).filter(Boolean);
+    const base = it.v.replace(/\s*\(.*\)$/, '');
+    const full = [base, ...aliases].map(fold);
+    if (list === 'label') full.push(fold(it.v.replace(/\s*\(.*\)$/, '')));
+    const last = list === 'label' ? [] : [...aliases.map(a => a.split(/\s+/).pop()), base.split(/\s+/).pop()].map(fold);
+    entries.push({ v: it.v, field, list, full, last });
+  }
+  // a surname is used on its own only if it points to one person in that role
+  const who = new Map();
+  entries.forEach(e => new Set(e.last).forEach(l => { const k = l + '|' + e.field; if (!who.has(k)) who.set(k, new Set()); who.get(k).add(e.v); }));
+  entries.forEach(e => { e.last = e.last.filter(l => l.length >= 3 && who.get(l + '|' + e.field).size === 1 && !/^(the|and|von|van|de|der)$/.test(l)); });
+  return entries;
+}
+function textHas(t, k){
+  if (!k) return false;
+  return /[a-z0-9]/.test(k) ? new RegExp('(^|[^a-z0-9])' + reEsc(k) + '([^a-z0-9]|$)').test(t) : t.includes(k);
+}
+function detectYear(title, desc){
+  const pick = s => {
+    const clean = String(s || '').replace(/(1[6-9]\d{2}|20\d{2})\s*[-–~]\s*(1[6-9]\d{2}|20\d{2})/g, ' ');
+    const m = clean.match(/(?:^|[^\d])(19\d{2}|20[0-2]\d)(?!\d)/);
+    return m ? m[1] : null;
+  };
+  const p = String(desc || '').match(/℗\s*(19\d{2}|20[0-2]\d)/);
+  const rec = String(desc || '').match(/(?:recorded|recording|rec\.|aufnahme|녹음)\D{0,20}(19\d{2}|20[0-2]\d)/i);
+  return pick(title) || (rec && rec[1]) || (p && p[1]) || null;
+}
+function detectMeta(item, p){
+  nameIndex = nameIndex || buildNameIndex();
+  const t = fold(`${item.title}\n${item.channel}\n${item.desc}`);
+  const titleT = fold(`${item.title}\n${item.channel}`);
+  const own = [];
+  state.pieces.forEach(pc => pc.recordings.forEach(r => ['performer', 'conductor', 'ensemble', 'label'].forEach(f => { if (r[f]) own.push({ v: r[f], field: f, list: 'own', full: [fold(r[f])], last: [] }); })));
+  const listOf = new Map(Object.entries(CAT).map(([k, v]) => [v, k]));
+  const prefer = {};
+  ['performer', 'conductor', 'ensemble'].forEach(f => prefer[f] = new Set(suggestions(p, f).map(([, items]) => listOf.get(items))));
+  const allowed = new Set([...fieldCfg(p).map(c => c[0]), 'label']);
+  const best = {};
+  for (const e of [...own, ...nameIndex]) {
+    if (!allowed.has(e.field)) continue;
+    let score;
+    if (e.full.some(k => textHas(titleT, k))) score = 4;
+    else if (e.full.some(k => textHas(t, k))) score = 3;
+    else if (e.field !== 'label' && e.last.some(k => textHas(titleT, k))) score = 2;
+    else continue;
+    if (e.list === 'own') score += 1;
+    if (prefer[e.field]?.has(e.list)) score += 2;
+    if (!best[e.field] || score > best[e.field].score) best[e.field] = { v: e.v, score };
+  }
+  const out = {};
+  for (const f in best) out[f] = best[f].v;
+  if (out.performer && out.performer === out.conductor) { if (p.kind === 'solo' || p.kind === 'concerto') delete out.conductor; else delete out.performer; }
+  const y = detectYear(item.title, item.desc); if (y) out.year = y;
+  if (/(^|[^a-z])live([^a-z]|$)|라이브|실황|in concert/.test(titleT)) out.live = 'live';
+  return out;
+}
+function aliasFor(name){
+  for (const list of Object.values(CAT)) { const it = list.find(x => x.v === name); if (it && it.a) return it.a.split('·')[0].trim(); }
+  return name;
+}
+const isoDur = s => { const m = String(s || '').match(/P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/); return m ? (+m[1] || 0) * 86400 + (+m[2] || 0) * 3600 + (+m[3] || 0) * 60 + (+m[4] || 0) : null; };
+const decodeHtml = s => { const t = document.createElement('textarea'); t.innerHTML = s; return t.value; };
+const ds = { mode: 'add', items: [], next: null, cache: new Map(), busy: false };
+async function ytApi(path, params){
+  let res;
+  try { res = await fetch(`https://www.googleapis.com/youtube/v3/${path}?${params}`); }
+  catch (e) { throw { kind: 'network' }; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) throw { kind: 'api', status: res.status, data };
+  return data;
+}
+function searchError(err){
+  if (err.kind === 'network') return { msg: '유튜브에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.' };
+  const raw = JSON.stringify(err.data || {});
+  if (/quotaExceeded|dailyLimitExceeded|RATE_LIMIT_EXCEEDED|rateLimitExceeded/i.test(raw)) return { msg: '오늘 쓸 수 있는 검색 횟수를 다 썼어요(하루 약 100번). 내일 다시 하거나 아래 ‘유튜브에서 직접 보기’를 써 주세요.' };
+  if (/API_KEY_INVALID|keyInvalid|API key not valid|API key expired/i.test(raw)) return { key: true, msg: 'API 키가 올바르지 않아요. 다시 복사해서 넣어 주세요.' };
+  if (/accessNotConfigured|SERVICE_DISABLED|has not been used|it is disabled/i.test(raw)) return { key: true, msg: '이 키의 프로젝트에서 YouTube Data API v3가 아직 켜지지 않았어요(안내 2단계). 방금 켰다면 몇 분 뒤 다시 해 보세요.' };
+  if (/REFERRER_BLOCKED|ipRefererBlocked|referer/i.test(raw)) return { key: true, msg: `키의 웹사이트 제한에 이 주소(${location.origin})가 없어요(안내 4단계).` };
+  if (/API_KEY_SERVICE_BLOCKED|SERVICE_BLOCKED/i.test(raw)) return { key: true, msg: '이 키는 YouTube Data API를 쓸 수 없게 제한돼 있어요. 키의 API 제한을 확인해 주세요(안내 4단계).' };
+  return { msg: `검색 중 오류가 났어요${err.status ? ` (${err.status})` : ''}. 잠시 후 다시 해 보세요.` };
+}
+function setYtLinks(q){
+  const href = `https://www.youtube.com/results?search_query=${encodeURIComponent(q || '')}`;
+  $('#ds-yt-link').href = href; $('#ds-yt-link2').href = href;
+}
+function showSetup(msg){
+  $('#ds-setup').hidden = false; $('#ds-main').hidden = true;
+  $('#ds-key').value = getKey(); $('#ds-key-err').textContent = msg || '';
+  setYtLinks($('#ds-q').value);
+  setTimeout(() => $('#ds-key').focus(), 50);
+}
+function showMain(){ $('#ds-setup').hidden = true; $('#ds-main').hidden = false; }
+function defaultQuery(names){ const p = cur(); return [p.composer, p.title, ...names].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim(); }
+function openSearch(mode, query){
+  ds.mode = mode;
+  $('#ds-q').value = query;
+  $('#ds-tip').innerHTML = (mode === 'pick' ? '고른 영상의 링크가 녹음 추가 창에 들어가요. 제목에서 읽어낸 정보는 빈 칸에만 채워요. ' : '<b>추가</b>를 누르면 바로 녹음으로 들어가고, 제목에서 읽어낸 연주자·지휘자·오케스트라·연도도 함께 채워요. 틀린 건 카드의 ‘편집’에서 고치면 돼요. ')
+    + '‘- Topic’ 채널(유튜브 뮤직 음원)은 보통 악장 하나씩 나뉘어 있어요. 곡 전체를 비교하려면 길이가 곡 전체만큼인 영상을 고르세요.';
+  $('#ds-results').innerHTML = ''; $('#ds-status').textContent = ''; $('#ds-more').hidden = true;
+  setYtLinks(query);
+  $('#dlg-search').showModal();
+  if (getKey()) { showMain(); runSearch(false); } else showSetup();
+}
+async function runSearch(more){
+  const key = getKey(); if (!key) { showSetup(); return; }
+  const q = $('#ds-q').value.trim(); if (!q || ds.busy) return;
+  const dur = $('#ds-dur').value;
+  setYtLinks(q);
+  if (!more) { ds.items = []; ds.next = null; $('#ds-results').innerHTML = '<div class="ds-msg">검색 중…</div>'; }
+  const ck = `${q}|${dur}|${more ? ds.next : ''}`;
+  ds.busy = true; $('#ds-status').textContent = '검색 중…'; $('#ds-more').disabled = true;
+  try {
+    let page = ds.cache.get(ck);
+    if (!page) {
+      const sp = new URLSearchParams({ part: 'snippet', type: 'video', videoEmbeddable: 'true', maxResults: '15', q, key });
+      if (dur !== 'any') sp.set('videoDuration', dur);
+      if (more && ds.next) sp.set('pageToken', ds.next);
+      const sr = await ytApi('search', sp);
+      const ids = (sr.items || []).map(i => i.id?.videoId).filter(Boolean);
+      const details = {};
+      if (ids.length) {
+        const vr = await ytApi('videos', new URLSearchParams({ part: 'snippet,contentDetails,status', id: ids.join(','), key }));
+        (vr.items || []).forEach(v => details[v.id] = v);
+      }
+      page = { next: sr.nextPageToken || null, items: ids.map(id => {
+        const s = (sr.items.find(i => i.id?.videoId === id) || {}).snippet || {}, d = details[id];
+        return { id, title: decodeHtml(d?.snippet?.title || s.title || ''), channel: d?.snippet?.channelTitle || s.channelTitle || '',
+          thumb: s.thumbnails?.medium?.url || s.thumbnails?.default?.url || `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+          published: s.publishedAt || '', desc: d?.snippet?.description || s.description || '',
+          dur: d ? isoDur(d.contentDetails?.duration) : null, embeddable: d ? d.status?.embeddable !== false : true };
+      }) };
+      ds.cache.set(ck, page);
+    }
+    ds.next = page.next;
+    const seen = new Set(ds.items.map(i => i.id));
+    ds.items.push(...page.items.filter(i => !seen.has(i.id)));
+    renderResults();
+  } catch (err) {
+    const e = searchError(err);
+    if (e.key) showSetup(e.msg);
+    else { $('#ds-results').innerHTML = `<div class="ds-msg">${esc(e.msg)}</div>`; $('#ds-status').textContent = ''; }
+  } finally { ds.busy = false; $('#ds-more').disabled = false; }
+}
+function renderResults(){
+  const p = cur(), box = $('#ds-results');
+  const have = new Set(p.recordings.map(r => r.videoId));
+  if (!ds.items.length) {
+    box.innerHTML = '<div class="ds-msg">결과가 없어요. 검색어를 줄이거나 영어로 바꿔 보세요.<br>예: Beethoven Moonlight Sonata Kempff</div>';
+    $('#ds-status').textContent = ''; $('#ds-more').hidden = true; return;
+  }
+  box.innerHTML = ds.items.map((it, i) => {
+    const m = it.meta = it.meta || detectMeta(it, p);
+    const tags = [['performer', '연주자'], ['conductor', '지휘자'], ['ensemble', '오케스트라'], ['year', '연도'], ['label', '레이블']]
+      .filter(([k]) => m[k]).map(([k, l]) => `<span>${l} ${esc(m[k])}</span>`).join('') + (m.live === 'live' ? '<span>라이브</span>' : '');
+    const added = have.has(it.id);
+    const btn = !it.embeddable ? `<button class="small" disabled title="업로더가 다른 사이트에서의 재생을 막아둔 영상이에요">재생 불가</button>`
+      : ds.mode === 'pick' ? `<button class="primary small" data-pick="${i}">이 영상 선택</button>`
+      : added ? `<button class="small" disabled>추가됨 ✓</button>` : `<button class="primary small" data-add="${i}">추가</button>`;
+    const url = `https://www.youtube.com/watch?v=${it.id}`;
+    return `<div class="ds-item ${added ? 'added' : ''}">
+      <a class="ds-thumb" href="${url}" target="_blank" rel="noopener" title="유튜브에서 보기"><img src="${esc(it.thumb)}" alt="" loading="lazy">${it.dur != null ? `<span>${fmt(it.dur)}</span>` : ''}</a>
+      <div class="ds-info"><a class="ds-title" href="${url}" target="_blank" rel="noopener" title="${esc(it.title)}">${esc(it.title)}</a>
+        <div class="ds-meta">${esc(it.channel)}${it.published ? ` · ${it.published.slice(0, 4)}년 업로드` : ''}</div>
+        ${tags ? `<div class="ds-tags">${tags}</div>` : ''}</div>
+      <div class="ds-act">${btn}</div></div>`;
+  }).join('');
+  $('#ds-more').hidden = !ds.next;
+  $('#ds-status').textContent = `결과 ${ds.items.length}개`;
+}
+function addFromResult(i){
+  const it = ds.items[i], p = cur(); if (!it || p.recordings.some(r => r.videoId === it.id)) return;
+  const m = it.meta || {};
+  const rec = { id: uid(), videoId: it.id, url: `https://www.youtube.com/watch?v=${it.id}`, performer: m.performer || '', conductor: m.conductor || '', ensemble: m.ensemble || '',
+    year: m.year || '', label: m.label || '', live: m.live || '', extra: '', videoTitle: it.title, markers: {}, end: null, duration: it.dur ?? null,
+    note: '', sectionNotes: {}, slot: nextSlot(p) };
+  p.recordings.push(rec);
+  ensureColors(p); save(); renderAll(); renderResults();
+  const name = recLabel(rec);
+  toast(matchesFilter(p, rec) ? `추가했어요: ${name}` : `추가했어요: ${name} · 지금 필터에 맞지 않아 목록에서는 가려져 있어요`);
+}
+function pickResult(i){
+  const it = ds.items[i], m = it?.meta || {}; if (!it) return;
+  $('#f-url').value = `https://www.youtube.com/watch?v=${it.id}`;
+  for (const k of ['performer', 'conductor', 'ensemble', 'year', 'label', 'live']) { const el = $('#f-' + k); if (m[k] && !el.value) el.value = m[k]; }
+  $('#rec-err').textContent = '';
+  $('#dlg-search').close();
+  toast('링크를 넣었어요. 정보를 확인하고 저장하세요.');
+}
+$('#btn-find').addEventListener('click', () => openSearch('add', defaultQuery([])));
+$('#btn-find-url').addEventListener('click', () => {
+  const names = ['performer', 'conductor'].map(k => $('#f-' + k).value.trim()).filter(Boolean).map(aliasFor);
+  openSearch('pick', defaultQuery(names));
+});
+$('#ds-form').addEventListener('submit', e => { e.preventDefault(); runSearch(false); });
+$('#ds-dur').addEventListener('change', () => runSearch(false));
+$('#ds-more').addEventListener('click', () => runSearch(true));
+$('#ds-q').addEventListener('input', () => setYtLinks($('#ds-q').value));
+$('#ds-results').addEventListener('click', e => {
+  const a = e.target.closest('[data-add]'), pk = e.target.closest('[data-pick]');
+  if (a) addFromResult(+a.dataset.add); else if (pk) pickResult(+pk.dataset.pick);
+});
+$('#ds-key-save').addEventListener('click', () => {
+  const k = $('#ds-key').value.trim();
+  if (!/^[\w-]{20,}$/.test(k)) { $('#ds-key-err').textContent = '키 모양이 이상해요. AIza로 시작하는 키 전체를 붙여넣어 주세요.'; return; }
+  setKey(k); ds.cache.clear(); showMain(); runSearch(false);
+});
+$('#ds-key').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#ds-key-save').click(); } });
+$('#ds-key-change').addEventListener('click', () => showSetup());
 
 function nameGroups(field){
   const p = cur(); if (!p) return [];
