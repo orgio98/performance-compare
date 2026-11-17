@@ -108,6 +108,20 @@ main{padding:20px 24px 60px;min-width:0}
 .pick-foot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:4px}
 .pick-foot .muted{font-size:12px}
 .field-row.three{grid-template-columns:1fr 1fr 1fr}
+.people{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.people .field[hidden]{display:none}
+.combo{position:relative;display:flex}
+.combo input{padding-right:30px}
+.combo-btn{position:absolute;right:3px;top:50%;transform:translateY(-50%);border:0;background:transparent;padding:2px 7px;color:var(--ink-2);font-size:12px;border-radius:6px}
+.combo-btn:hover{background:var(--surface-2)}
+.combo-list{position:fixed;z-index:100;background:var(--surface);border:1px solid var(--border-strong);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);max-height:280px;overflow:auto;padding:4px 0;font-size:13px}
+.combo-grp{position:sticky;top:-4px;background:var(--surface);font-size:11.5px;font-weight:600;color:var(--muted);padding:7px 12px 3px}
+.combo-opt{padding:6px 12px;cursor:pointer;display:flex;align-items:baseline;gap:8px}
+.combo-opt.act,.combo-opt:hover{background:var(--accent-soft)}
+.combo-alt{color:var(--muted);font-size:11.5px}
+.combo-n{margin-left:auto;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.combo-empty{padding:8px 12px;color:var(--muted)}
+.combo-opt mark{background:transparent;color:var(--accent);font-weight:600}
 dialog select{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:6px 9px;width:100%}
 
 /* listen */
@@ -366,6 +380,15 @@ dialog h2{margin:0;font-size:17px}
     <h2 id="dlg-piece-title">새 작품</h2>
     <label class="field"><span>작품명</span><input type="text" id="f-title" placeholder="예: 골드베르크 변주곡 BWV 988" required></label>
     <label class="field"><span>작곡가</span><input type="text" id="f-composer" placeholder="예: J. S. 바흐"></label>
+    <div class="field-row">
+      <label class="field"><span>편성</span><select id="f-kind">
+        <option value="orchestral">관현악 (교향곡·서곡 등)</option><option value="concerto">협주곡</option><option value="solo">독주곡</option>
+        <option value="chamber">실내악</option><option value="vocal">성악·오페라</option><option value="other">기타</option></select></label>
+      <label class="field" id="f-instr-wrap"><span>독주 악기</span><select id="f-instr">
+        <option value="piano">피아노</option><option value="violin">바이올린</option><option value="cello">첼로</option><option value="viola">비올라</option>
+        <option value="guitar">기타 (악기)</option><option value="keyboard">하프시코드·오르간</option><option value="wind">관악기</option><option value="any">여러 악기</option></select></label>
+    </div>
+    <small id="kind-hint" class="muted" style="margin-top:-6px"></small>
     <label class="field"><span>구간</span>
       <textarea id="f-sections" rows="7" placeholder="한 줄에 하나씩&#10;1악장 Allegro&#10;2악장 Adagio&#10;3악장 Presto"></textarea>
       <small>악장, 변주, 주제처럼 비교하고 싶은 단위로 나눠요. 한 줄에 하나씩 적고, 이름만 고치면 표시해 둔 시간은 그대로 남아요.</small>
@@ -379,22 +402,21 @@ dialog h2{margin:0;font-size:17px}
 
 <dialog id="dlg-rec">
   <form id="form-rec">
-    <h2 id="dlg-rec-title">녹음 추가</h2>
+    <h2><span id="dlg-rec-title">녹음 추가</span> <small class="muted" style="font-size:12.5px;font-weight:400">편성: <span id="rec-kind"></span> (작품 편집에서 바꿀 수 있어요)</small></h2>
     <label class="field"><span>유튜브 또는 유튜브 뮤직 링크</span><input type="text" id="f-url" placeholder="https://music.youtube.com/watch?v=…" required autocomplete="off">
       <small>곡 하나짜리 링크(watch?v=…, youtu.be/…)를 넣어주세요. 링크에 시작 시간(&amp;t=)이 있으면 첫 구간 시작으로 써요.</small></label>
-    <div class="field-row">
-      <label class="field"><span>지휘자</span><input type="text" id="f-conductor" list="dl-conductor" placeholder="예: 카라얀" autocomplete="off"></label>
-      <label class="field"><span>연주자 (독주자)</span><input type="text" id="f-performer" list="dl-performer" placeholder="예: 굴드" autocomplete="off"></label>
+    <div class="people" id="people">
+      <label class="field" data-k="performer"><span>연주자</span><input type="text" id="f-performer" autocomplete="off"></label>
+      <label class="field" data-k="conductor"><span>지휘자</span><input type="text" id="f-conductor" autocomplete="off"></label>
+      <label class="field" data-k="ensemble"><span>오케스트라·앙상블</span><input type="text" id="f-ensemble" autocomplete="off"></label>
     </div>
-    <label class="field"><span>오케스트라·앙상블</span><input type="text" id="f-ensemble" list="dl-ensemble" placeholder="예: 베를린 필하모닉" autocomplete="off"></label>
     <div class="field-row three">
       <label class="field"><span>녹음 연도</span><input type="text" id="f-year" inputmode="numeric" placeholder="예: 1962"></label>
-      <label class="field"><span>레이블</span><input type="text" id="f-label" list="dl-label" placeholder="예: DG" autocomplete="off"></label>
+      <label class="field"><span>레이블</span><input type="text" id="f-label" placeholder="예: DG" autocomplete="off"></label>
       <label class="field"><span>형태</span><select id="f-live"><option value="">모름</option><option value="studio">스튜디오</option><option value="live">라이브</option></select></label>
     </div>
     <label class="field"><span>기타 정보</span><input type="text" id="f-extra" placeholder="예: 리마스터, 반복 생략, 공연 장소"></label>
-    <small class="muted">지휘자·연주자·오케스트라는 이 기준으로 녹음을 걸러 비교해요. 같은 사람은 같은 표기로 적어주세요(입력하면 기존 이름이 제안돼요). 지휘자와 연주자를 모두 비우면 영상 제목이 이름으로 쓰여요.</small>
-    <datalist id="dl-conductor"></datalist><datalist id="dl-performer"></datalist><datalist id="dl-ensemble"></datalist><datalist id="dl-label"></datalist>
+    <small class="muted">▾를 누르거나 입력하면 이 작품에 쓴 이름과 추천 목록에서 고를 수 있어요. 목록에 없는 이름은 그대로 적으면 돼요. 같은 사람은 같은 표기로 적어야 비교할 때 한데 묶여요.</small>
     <div class="err" id="rec-err"></div>
     <div class="dlg-actions">
       <button type="button" id="btn-del-rec" class="ghost danger">녹음 삭제</button>
@@ -472,10 +494,420 @@ function toast(msg){
 }
 function banner(html){ const b = $('#banner'); b.innerHTML = html; b.hidden = false; }
 
+/* ---------- recommendation catalog (Korean name | original spelling, used for search) ---------- */
+const CAT = (() => {
+  const L = s => s.trim().split('\n').map(x => x.trim()).filter(Boolean).map(x => { const [v, a] = x.split('|'); return { v: v.trim(), a: (a || '').trim() }; });
+  return {
+    conductor: L(`
+      헤르베르트 폰 카라얀|Herbert von Karajan
+      빌헬름 푸르트벵글러|Wilhelm Furtwängler
+      아르투로 토스카니니|Arturo Toscanini
+      카를로스 클라이버|Carlos Kleiber
+      에리히 클라이버|Erich Kleiber
+      레너드 번스타인|Leonard Bernstein
+      세르주 첼리비다케|Sergiu Celibidache
+      카를 뵘|Karl Böhm
+      오토 클렘페러|Otto Klemperer
+      브루노 발터|Bruno Walter
+      예브게니 므라빈스키|Evgeny Mravinsky
+      게오르그 솔티|Georg Solti
+      클라우디오 아바도|Claudio Abbado
+      베르나르트 하이팅크|Bernard Haitink
+      사이먼 래틀|Simon Rattle
+      다니엘 바렌보임|Daniel Barenboim
+      리카르도 무티|Riccardo Muti
+      리카르도 샤이|Riccardo Chailly
+      마리스 얀손스|Mariss Jansons
+      크리스티안 틸레만|Christian Thielemann
+      야니크 네제세갱|Yannick Nézet-Séguin
+      구스타보 두다멜|Gustavo Dudamel
+      키릴 페트렌코|Kirill Petrenko
+      주빈 메타|Zubin Mehta
+      오자와 세이지|Seiji Ozawa
+      정명훈|Myung-Whun Chung
+      니콜라우스 아르농쿠르|Nikolaus Harnoncourt
+      존 엘리엇 가디너|John Eliot Gardiner
+      필리프 헤레베허|Philippe Herreweghe
+      라파엘 쿠벨리크|Rafael Kubelík
+      조지 셀|George Szell
+      프리츠 라이너|Fritz Reiner
+      유진 오먼디|Eugene Ormandy
+      샤를 뮌슈|Charles Munch
+      카를로 마리아 줄리니|Carlo Maria Giulini
+      귄터 반트|Günter Wand
+      한스 크나퍼츠부슈|Hans Knappertsbusch
+      카를 슈리히트|Carl Schuricht
+      예브게니 스베틀라노프|Evgeny Svetlanov
+      발레리 게르기예프|Valery Gergiev
+      로린 마젤|Lorin Maazel
+      헤르베르트 블롬스테트|Herbert Blomstedt
+      샤를 뒤투아|Charles Dutoit
+      피에르 불레즈|Pierre Boulez
+      안드리스 넬손스|Andris Nelsons
+      클라우스 메켈레|Klaus Mäkelä
+      테오도르 쿠렌치스|Teodor Currentzis
+      파보 예르비|Paavo Järvi
+      이반 피셔|Iván Fischer
+      마이클 틸슨 토머스|Michael Tilson Thomas
+      트레버 피녹|Trevor Pinnock
+      톤 코프만|Ton Koopman
+      마사아키 스즈키|Masaaki Suzuki
+      르네 야콥스|René Jacobs`),
+    orchestra: L(`
+      베를린 필하모닉|Berliner Philharmoniker
+      빈 필하모닉|Wiener Philharmoniker · Vienna Philharmonic
+      로열 콘세르트헤바우 오케스트라|Royal Concertgebouw Orchestra
+      바이에른 방송 교향악단|Bavarian Radio Symphony Orchestra
+      드레스덴 슈타츠카펠레|Staatskapelle Dresden
+      베를린 슈타츠카펠레|Staatskapelle Berlin
+      라이프치히 게반트하우스 오케스트라|Gewandhausorchester Leipzig
+      북독일 방송 교향악단 (NDR)|NDR Elbphilharmonie Orchester
+      밤베르크 교향악단|Bamberger Symphoniker
+      뮌헨 필하모닉|Münchner Philharmoniker
+      시카고 교향악단|Chicago Symphony Orchestra
+      뉴욕 필하모닉|New York Philharmonic
+      클리블랜드 오케스트라|Cleveland Orchestra
+      필라델피아 오케스트라|Philadelphia Orchestra
+      보스턴 교향악단|Boston Symphony Orchestra
+      로스앤젤레스 필하모닉|Los Angeles Philharmonic
+      NBC 교향악단|NBC Symphony Orchestra
+      런던 심포니 오케스트라|London Symphony Orchestra
+      런던 필하모닉 오케스트라|London Philharmonic Orchestra
+      필하모니아 오케스트라|Philharmonia Orchestra
+      레닌그라드 필하모닉|Leningrad Philharmonic
+      상트페테르부르크 필하모닉|St Petersburg Philharmonic
+      체코 필하모닉|Czech Philharmonic
+      파리 오케스트라|Orchestre de Paris
+      프랑스 국립 오케스트라|Orchestre National de France
+      산타 체칠리아 국립 아카데미 오케스트라|Orchestra dell'Accademia Nazionale di Santa Cecilia
+      루체른 페스티벌 오케스트라|Lucerne Festival Orchestra
+      말러 체임버 오케스트라|Mahler Chamber Orchestra
+      유럽 체임버 오케스트라|Chamber Orchestra of Europe
+      도이치 캄머필하모니 브레멘|Deutsche Kammerphilharmonie Bremen
+      몬트리올 교향악단|Orchestre symphonique de Montréal
+      시몬 볼리바르 교향악단|Simón Bolívar Symphony Orchestra
+      콘첸투스 무지쿠스 빈|Concentus Musicus Wien · Vienna
+      잉글리시 바로크 솔로이스츠|English Baroque Soloists
+      혁명과 낭만 오케스트라|Orchestre Révolutionnaire et Romantique
+      잉글리시 콘서트|The English Concert
+      무지카 에테르나|MusicAeterna
+      서울시립교향악단|Seoul Philharmonic Orchestra
+      KBS교향악단|KBS Symphony Orchestra`),
+    chamber: L(`
+      아마데우스 현악4중주단|Amadeus Quartet
+      알반 베르크 현악4중주단|Alban Berg Quartett
+      부다페스트 현악4중주단|Budapest String Quartet
+      이탈리아 현악4중주단|Quartetto Italiano
+      줄리아드 현악4중주단|Juilliard String Quartet
+      에머슨 현악4중주단|Emerson String Quartet
+      하겐 현악4중주단|Hagen Quartett
+      보로딘 현악4중주단|Borodin Quartet
+      타카치 현악4중주단|Takács Quartet
+      벨체아 현악4중주단|Belcea Quartet
+      아르테미스 현악4중주단|Artemis Quartett
+      에벤 현악4중주단|Quatuor Ébène
+      노부스 콰르텟|Novus Quartet
+      에스메 콰르텟|Esmé Quartet
+      보자르 트리오|Beaux Arts Trio`),
+    piano: L(`
+      글렌 굴드|Glenn Gould
+      블라디미르 호로비츠|Vladimir Horowitz
+      스뱌토슬라프 리히테르|Sviatoslav Richter
+      에밀 길렐스|Emil Gilels
+      아르투르 루빈스타인|Arthur Rubinstein
+      빌헬름 켐프|Wilhelm Kempff
+      빌헬름 박하우스|Wilhelm Backhaus
+      아르투르 슈나벨|Artur Schnabel
+      클라우디오 아라우|Claudio Arrau
+      디누 리파티|Dinu Lipatti
+      아르투로 베네데티 미켈란젤리|Arturo Benedetti Michelangeli
+      알프레드 브렌델|Alfred Brendel
+      마우리치오 폴리니|Maurizio Pollini
+      마르타 아르헤리치|Martha Argerich
+      크리스티안 지메르만|Krystian Zimerman
+      다니엘 바렌보임|Daniel Barenboim
+      머레이 페라이어|Murray Perahia
+      언드라시 시프|András Schiff
+      우치다 미쓰코|Mitsuko Uchida
+      블라디미르 아시케나지|Vladimir Ashkenazy
+      라두 루푸|Radu Lupu
+      마리아 조앙 피르스|Maria João Pires
+      이보 포고렐리치|Ivo Pogorelić
+      그리고리 소콜로프|Grigory Sokolov
+      안젤라 휴잇|Angela Hewitt
+      예브게니 키신|Evgeny Kissin
+      다닐 트리포노프|Daniil Trifonov
+      이고르 레비트|Igor Levit
+      랑랑|Lang Lang
+      유자 왕|Yuja Wang
+      백건우|Kun-Woo Paik
+      손열음|Yeol Eum Son
+      조성진|Seong-Jin Cho
+      임윤찬|Yunchan Lim`),
+    keyboard: L(`
+      구스타프 레온하르트|Gustav Leonhardt
+      트레버 피녹|Trevor Pinnock
+      스콧 로스|Scott Ross
+      피에르 앙타이|Pierre Hantaï
+      마한 에스파하니|Mahan Esfahani
+      반다 란도프스카|Wanda Landowska
+      헬무트 발햐|Helmut Walcha
+      마리클레르 알랭|Marie-Claire Alain
+      톤 코프만|Ton Koopman`),
+    violin: L(`
+      야샤 하이페츠|Jascha Heifetz
+      다비드 오이스트라흐|David Oistrakh
+      나탄 밀스타인|Nathan Milstein
+      요제프 시게티|Joseph Szigeti
+      프리츠 크라이슬러|Fritz Kreisler
+      예후디 메뉴인|Yehudi Menuhin
+      헨리크 셰링|Henryk Szeryng
+      아르튀르 그뤼미오|Arthur Grumiaux
+      이츠하크 펄먼|Itzhak Perlman
+      핀커스 주커만|Pinchas Zukerman
+      정경화|Kyung-Wha Chung
+      안네조피 무터|Anne-Sophie Mutter
+      기돈 크레머|Gidon Kremer
+      빅토리아 뮬로바|Viktoria Mullova
+      막심 벤게로프|Maxim Vengerov
+      힐러리 한|Hilary Hahn
+      율리아 피셔|Julia Fischer
+      야니너 얀선|Janine Jansen
+      크리스티안 테츨라프|Christian Tetzlaff
+      레오니다스 카바코스|Leonidas Kavakos
+      파트리치아 코파친스카야|Patricia Kopatchinskaja
+      사라 장|Sarah Chang
+      클라라 주미 강|Clara-Jumi Kang
+      양인모|Inmo Yang`),
+    cello: L(`
+      파블로 카살스|Pablo Casals
+      피에르 푸르니에|Pierre Fournier
+      그레고르 퍄티고르스키|Gregor Piatigorsky
+      므스티슬라프 로스트로포비치|Mstislav Rostropovich
+      자클린 뒤 프레|Jacqueline du Pré
+      폴 토르틀리에|Paul Tortelier
+      야노스 슈타커|János Starker
+      미샤 마이스키|Mischa Maisky
+      요요마|Yo-Yo Ma
+      하인리히 시프|Heinrich Schiff
+      안너 빌스마|Anner Bylsma
+      피터르 비스펠베이|Pieter Wispelwey
+      스티븐 이설리스|Steven Isserlis
+      장기앙 케라스|Jean-Guihen Queyras
+      고티에 카퓌송|Gautier Capuçon
+      솔 가베타|Sol Gabetta
+      장한나|Han-Na Chang
+      문태국|Taeguk Mun`),
+    viola: L(`
+      유리 바시메트|Yuri Bashmet
+      타베아 치머만|Tabea Zimmermann
+      킴 카쉬카쉬안|Kim Kashkashian
+      앙투안 타메스티|Antoine Tamestit
+      리처드 용재 오닐|Richard Yongjae O'Neill`),
+    guitar: L(`
+      안드레스 세고비아|Andrés Segovia
+      줄리언 브림|Julian Bream
+      존 윌리엄스 (기타)|John Williams
+      나르시소 예페스|Narciso Yepes
+      밀로시 카라다글리치|Miloš Karadaglić
+      박규희|Kyuhee Park`),
+    wind: L(`
+      데니스 브레인|Dennis Brain
+      자비네 마이어|Sabine Meyer
+      마르틴 프뢰스트|Martin Fröst
+      장피에르 랑팔|Jean-Pierre Rampal
+      제임스 골웨이|James Galway
+      에마누엘 파위|Emmanuel Pahud
+      하인츠 홀리거|Heinz Holliger
+      모리스 앙드레|Maurice André`),
+    voice: L(`
+      마리아 칼라스|Maria Callas
+      레나타 테발디|Renata Tebaldi
+      엘리자베트 슈바르츠코프|Elisabeth Schwarzkopf
+      디트리히 피셔디스카우|Dietrich Fischer-Dieskau
+      프리츠 분덜리히|Fritz Wunderlich
+      크리스타 루트비히|Christa Ludwig
+      군둘라 야노비츠|Gundula Janowitz
+      루치아노 파바로티|Luciano Pavarotti
+      플라시도 도밍고|Plácido Domingo
+      호세 카레라스|José Carreras
+      레온타인 프라이스|Leontyne Price
+      제시 노먼|Jessye Norman
+      키리 테 카나와|Kiri Te Kanawa
+      체칠리아 바르톨리|Cecilia Bartoli
+      요나스 카우프만|Jonas Kaufmann
+      안나 네트렙코|Anna Netrebko
+      이언 보스트리지|Ian Bostridge
+      마티아스 괴르네|Matthias Goerne
+      브린 터펠|Bryn Terfel
+      조수미|Sumi Jo
+      홍혜경|Hei-Kyung Hong
+      사무엘 윤|Samuel Youn`),
+    label: L(`
+      DG (도이치 그라모폰)|Deutsche Grammophon
+      Decca (데카)|Decca
+      EMI|EMI
+      Philips (필립스)|Philips
+      Sony Classical (소니)|Sony
+      RCA|RCA Red Seal
+      Columbia (컬럼비아)|Columbia
+      Warner Classics (워너)|Warner
+      Erato (에라토)|Erato
+      Teldec (텔덱)|Teldec
+      Archiv (아르히프)|Archiv Produktion
+      Harmonia Mundi (하르모니아 문디)|Harmonia Mundi
+      Hyperion (하이페리온)|Hyperion
+      BIS|BIS
+      Chandos (샨도스)|Chandos
+      Naxos (낙소스)|Naxos
+      Alpha (알파)|Alpha Classics
+      Pentatone (펜타톤)|Pentatone
+      Melodiya (멜로디야)|Melodiya
+      Supraphon (수프라폰)|Supraphon
+      Testament (테스타먼트)|Testament
+      Orfeo (오르페오)|Orfeo
+      Audite (아우디테)|Audite
+      ECM New Series|ECM`)
+  };
+})();
+const KIND_NAMES = { orchestral: '관현악', concerto: '협주곡', solo: '독주곡', chamber: '실내악', vocal: '성악·오페라', other: '기타' };
+const INSTR_NAMES = { piano: '피아노', violin: '바이올린', cello: '첼로', viola: '비올라', guitar: '기타', keyboard: '하프시코드·오르간', wind: '관악기', any: '여러 악기' };
+const INSTR_ROLE = { piano: '피아니스트', violin: '바이올리니스트', cello: '첼리스트', viola: '비올리스트', guitar: '기타리스트', keyboard: '건반 연주자', wind: '관악 연주자', any: '연주자' };
+
+function guessKind(title){
+  const t = String(title || '').toLowerCase();
+  if (!t.trim()) return null;
+  const has = re => re.test(t);
+  let instr = null;
+  if (has(/골드베르크|goldberg|평균율|well-tempered|wohltemperierte|하프시코드|쳄발로|harpsichord|cembalo|clavecin|오르간|organ|orgel/)) instr = 'keyboard';
+  else if (has(/피아노|piano|klavier/)) instr = 'piano';
+  else if (has(/바이올린|violin|violon(?!cell)|violine/)) instr = 'violin';
+  else if (has(/첼로|cello/)) instr = 'cello';
+  else if (has(/비올라|viola/)) instr = 'viola';
+  else if (has(/기타 ?(협주곡|소나타|모음곡|를|독주)|guitar|guitarra/)) instr = 'guitar';
+  else if (has(/클라리넷|플루트|오보에|바순|호른|트럼펫|clarinet|flute|oboe|bassoon|horn|trumpet/)) instr = 'wind';
+  let kind;
+  if (has(/협주곡|concerto|konzert/)) kind = 'concerto';
+  else if (has(/[2-8]중주|[이삼사오육칠팔]중주|quartet|quartett|quatuor|trio|quintet|sextet|septet|octet|실내악/)) kind = 'chamber';
+  else if (has(/오페라|opera|레퀴엠|requiem|미사|\bmass\b|messe|칸타타|cantata|수난곡|passion|오라토리오|oratorio|가곡|lied|겨울 ?나그네|winterreise|시인의 ?사랑|dichterliebe|아리아|aria|합창 교향곡/)) kind = 'vocal';
+  else if (has(/교향곡|symphon|sinfonie|서곡|overture|교향시|관현악|orchestra|발레|ballet|세레나데|serenade|협주곡/)) kind = 'orchestral';
+  else if (instr) kind = 'solo';
+  else if (has(/소나타|sonata|녹턴|nocturne|발라드|ballade|마주르카|mazurka|폴로네즈|polonaise|연습곡|[ée]tude|전주곡|prelude|즉흥곡|impromptu|왈츠|waltz|파르티타|partita|스케르초|scherzo|바가텔|bagatelle/)) { kind = 'solo'; instr = 'piano'; }
+  else if (has(/모음곡|suite|변주곡|variation|환상곡|fantas|교향적|랩소디|rhapsod/)) kind = 'orchestral';
+  else return null;
+  if ((kind === 'solo' || kind === 'concerto') && !instr) instr = kind === 'solo' ? 'piano' : 'any';
+  return { kind, instr: instr || 'any' };
+}
+// which name fields a recording of this piece needs, in display order
+function fieldCfg(p){
+  const ins = INSTR_NAMES[p.instr] || '';
+  const k = p.kind || 'other';
+  return {
+    orchestral: [['conductor', '지휘자'], ['ensemble', '오케스트라']],
+    concerto: [['performer', `독주자${ins && p.instr !== 'any' ? ` (${ins})` : ''}`], ['conductor', '지휘자'], ['ensemble', '오케스트라']],
+    solo: [['performer', `연주자${ins && p.instr !== 'any' ? ` (${ins})` : ''}`]],
+    chamber: [['ensemble', '앙상블 (4중주단 등)'], ['performer', '연주자 (선택)']],
+    vocal: [['performer', '가수 (주역)'], ['conductor', '지휘자'], ['ensemble', '오케스트라·합창단']],
+    other: [['performer', '연주자'], ['conductor', '지휘자'], ['ensemble', '오케스트라·앙상블']]
+  }[k] || [];
+}
+function suggestions(p, field){
+  const k = p.kind || 'other', ins = p.instr || 'any';
+  const instrLists = i => i === 'any' ? [['피아니스트', CAT.piano], ['바이올리니스트', CAT.violin], ['첼리스트', CAT.cello]]
+    : i === 'keyboard' ? [['하프시코드·오르간 연주자', CAT.keyboard], ['피아니스트', CAT.piano]]
+    : [[INSTR_ROLE[i], CAT[i] || []]];
+  if (field === 'conductor') return [['유명 지휘자', CAT.conductor]];
+  if (field === 'label') return [['주요 레이블', CAT.label]];
+  if (field === 'ensemble') {
+    if (k === 'chamber') return [['현악4중주단·트리오', CAT.chamber]];
+    if (k === 'other') return [['오케스트라', CAT.orchestra], ['실내악 앙상블', CAT.chamber]];
+    return [['오케스트라', CAT.orchestra]];
+  }
+  if (field === 'performer') {
+    if (k === 'vocal') return [['성악가', CAT.voice]];
+    if (k === 'concerto' || k === 'solo') return instrLists(ins);
+    return [...instrLists('any'), ['성악가', CAT.voice]];
+  }
+  return [];
+}
+
+/* ---------- searchable dropdown (combobox) ---------- */
+function makeCombo(input, getGroups){
+  const wrap = document.createElement('div'); wrap.className = 'combo';
+  input.parentNode.insertBefore(wrap, input); wrap.appendChild(input);
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'combo-btn'; btn.tabIndex = -1; btn.textContent = '▾'; btn.setAttribute('aria-label', '목록 열기');
+  wrap.appendChild(btn);
+  const list = document.createElement('div'); list.className = 'combo-list'; list.hidden = true; list.setAttribute('role', 'listbox');
+  list.id = input.id + '-list'; wrap.appendChild(list);
+  input.setAttribute('role', 'combobox'); input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-expanded', 'false'); input.setAttribute('aria-controls', list.id);
+  let opts = [], act = -1, showAll = true;
+  const norm = s => s.toLowerCase().replace(/[\s·\-]/g, '');
+  function hl(text, q){
+    if (!q) return esc(text);
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    return i < 0 ? esc(text) : esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+  }
+  function render(){
+    const raw = input.value.trim(), q = showAll ? '' : raw, nq = norm(q);
+    let html = ''; opts = [];
+    const seen = new Set();
+    for (const g of getGroups()) {
+      const f = g.items.filter(it => !seen.has(it.v) && (!nq || norm(it.v).includes(nq) || norm(it.a || '').includes(nq)));
+      if (!f.length) continue;
+      html += `<div class="combo-grp">${esc(g.label)}</div>`;
+      f.forEach(it => {
+        seen.add(it.v); opts.push(it.v);
+        html += `<div class="combo-opt" role="option" id="${list.id}-${opts.length - 1}" data-i="${opts.length - 1}">${hl(it.v, q)}${it.a && it.a !== it.v ? `<span class="combo-alt">${hl(it.a, q)}</span>` : ''}${it.n ? `<span class="combo-n">${it.n}</span>` : ''}</div>`;
+      });
+    }
+    if (!opts.length) html = `<div class="combo-empty">${raw ? `목록에 없어요. ‘${esc(raw)}’ 그대로 저장돼요.` : '추천할 이름이 없어요.'}</div>`;
+    list.innerHTML = html;
+    act = opts.length && !showAll && raw ? 0 : -1;
+    paint();
+  }
+  function paint(){
+    list.querySelectorAll('.combo-opt').forEach(o => o.classList.toggle('act', +o.dataset.i === act));
+    const a = list.querySelector('.combo-opt.act');
+    if (a) { a.scrollIntoView({ block: 'nearest' }); input.setAttribute('aria-activedescendant', a.id); } else input.removeAttribute('aria-activedescendant');
+  }
+  function place(){
+    const r = input.getBoundingClientRect();
+    const below = innerHeight - r.bottom - 8, h = Math.min(280, Math.max(below, r.top - 8));
+    list.style.left = r.left + 'px'; list.style.width = Math.max(r.width, 290) + 'px'; list.style.maxHeight = h + 'px';
+    if (below >= 160 || below >= r.top) { list.style.top = (r.bottom + 4) + 'px'; list.style.bottom = ''; }
+    else { list.style.top = ''; list.style.bottom = (innerHeight - r.top + 4) + 'px'; }
+  }
+  function open(all){ showAll = all; render(); list.hidden = false; input.setAttribute('aria-expanded', 'true'); place(); }
+  function close(){ list.hidden = true; input.setAttribute('aria-expanded', 'false'); act = -1; }
+  function choose(i){ if (i < 0 || i >= opts.length) return; input.value = opts[i]; close(); input.dispatchEvent(new Event('change', { bubbles: true })); }
+  input.addEventListener('focus', () => open(true));
+  input.addEventListener('click', () => { if (list.hidden) open(true); });
+  input.addEventListener('input', () => open(false));
+  input.addEventListener('blur', () => setTimeout(close, 120));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (list.hidden) { open(true); return; }
+      if (!opts.length) return;
+      act = e.key === 'ArrowDown' ? (act + 1) % opts.length : (act <= 0 ? opts.length - 1 : act - 1);
+      paint();
+    } else if (e.key === 'Enter' && !list.hidden && act >= 0) { e.preventDefault(); choose(act); }
+    else if (e.key === 'Escape' && !list.hidden) { e.preventDefault(); e.stopPropagation(); close(); }
+    else if (e.key === 'Tab') close();
+  });
+  list.addEventListener('mousedown', e => { e.preventDefault(); const o = e.target.closest('.combo-opt'); if (o) choose(+o.dataset.i); });
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('click', e => { e.preventDefault(); if (list.hidden) { input.focus(); open(true); } else close(); });
+  addEventListener('resize', () => { if (!list.hidden) place(); });
+  input.closest('dialog')?.addEventListener('scroll', () => { if (!list.hidden) place(); }, true);
+  return { close };
+}
+
 /* ---------- state ---------- */
 const emptyFilter = () => ({ conductor: '', performer: '', ensemble: '', live: '', yFrom: '', yTo: '' });
-function newPiece(title, composer, names){
-  return { id: uid(), title, composer, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true } };
+function newPiece(title, composer, names, kind, instr){
+  const g = guessKind(title) || { kind: 'other', instr: 'any' };
+  return { id: uid(), title, composer, kind: kind || g.kind, instr: instr || g.instr, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true } };
 }
 function seedState(){
   const p = newPiece('교향곡 5번 c단조, Op. 67', '베토벤', ['1악장 Allegro con brio', '2악장 Andante con moto', '3악장 Allegro', '4악장 Allegro']);
@@ -485,6 +917,7 @@ function normalizePiece(p){
   p.id = p.id || uid();
   p.title = p.title || '제목 없음';
   p.composer = p.composer || '';
+  if (!KIND_NAMES[p.kind] || !INSTR_NAMES[p.instr]) { const g = guessKind(p.title) || { kind: 'other', instr: 'any' }; if (!KIND_NAMES[p.kind]) p.kind = g.kind; if (!INSTR_NAMES[p.instr]) p.instr = g.instr; }
   p.sections = Array.isArray(p.sections) && p.sections.length ? p.sections.map(s => ({ id: s.id || uid(), name: s.name || '구간' })) : [{ id: uid(), name: '전체' }];
   p.recordings = (Array.isArray(p.recordings) ? p.recordings : []).filter(r => r && r.videoId).map(r => ({
     id: r.id || uid(), videoId: r.videoId, url: r.url || '', performer: r.performer || '', conductor: r.conductor || '', ensemble: r.ensemble || '',
@@ -1264,11 +1697,26 @@ function openPieceDialog(piece){
   $('#f-title').value = piece?.title || '';
   $('#f-composer').value = piece?.composer || '';
   $('#f-sections').value = piece ? piece.sections.map(s => s.name).join('\n') : '';
+  kindTouched = !!piece;
+  $('#f-kind').value = piece?.kind || 'orchestral';
+  $('#f-instr').value = piece?.instr || 'piano';
+  $('#kind-hint').textContent = piece ? '' : '작품명을 입력하면 편성을 짐작해서 골라 둘게요. 편성에 맞춰 녹음 추가 창의 입력 칸과 추천 목록이 바뀌어요.';
+  syncInstrVisibility();
   $('#btn-del-piece').style.visibility = piece ? 'visible' : 'hidden';
   $('#dlg-piece').showModal();
   $('#f-title').focus();
 }
 $('#btn-new-piece').addEventListener('click', () => openPieceDialog(null));
+let kindTouched = false;
+function syncInstrVisibility(){ const k = $('#f-kind').value; $('#f-instr-wrap').style.visibility = k === 'solo' || k === 'concerto' ? 'visible' : 'hidden'; }
+$('#f-title').addEventListener('input', () => {
+  if (kindTouched) return;
+  const g = guessKind($('#f-title').value);
+  if (!g) { $('#kind-hint').textContent = '작품명으로 편성을 짐작하지 못했어요. 직접 골라주세요.'; return; }
+  $('#f-kind').value = g.kind; $('#f-instr').value = g.instr; syncInstrVisibility();
+  $('#kind-hint').textContent = `작품명으로 짐작했어요: ${KIND_NAMES[g.kind]}${g.kind === 'solo' || g.kind === 'concerto' ? ` · ${INSTR_NAMES[g.instr]}` : ''}. 다르면 바꿔주세요.`;
+});
+['#f-kind', '#f-instr'].forEach(sel => $(sel).addEventListener('change', () => { kindTouched = true; syncInstrVisibility(); $('#kind-hint').textContent = ''; }));
 $('#btn-edit-piece').addEventListener('click', () => openPieceDialog(cur()));
 $('#form-piece').addEventListener('submit', e => {
   e.preventDefault();
@@ -1276,15 +1724,16 @@ $('#form-piece').addEventListener('submit', e => {
   const composer = $('#f-composer').value.trim();
   let names = $('#f-sections').value.split('\n').map(s => s.trim()).filter(Boolean);
   if (!names.length) names = ['전체'];
+  const kind = $('#f-kind').value, instr = $('#f-instr').value;
   if (!editingPiece) {
-    const p = newPiece(title, composer, names);
+    const p = newPiece(title, composer, names, kind, instr);
     state.pieces.push(p);
     $('#dlg-piece').close();
     selectPiece(p.id);
     return;
   }
   const p = editingPiece;
-  p.title = title; p.composer = composer;
+  p.title = title; p.composer = composer; p.kind = kind; p.instr = instr;
   const old = p.sections, used = new Set();
   const next = names.map(n => { const m = old.find(s => s.name === n && !used.has(s.id)); if (m) { used.add(m.id); return m; } return null; });
   p.sections = next.map((s, i) => {
@@ -1314,14 +1763,19 @@ function openRecDialog(rec){
   $('#dlg-rec-title').textContent = rec ? '녹음 편집' : '녹음 추가';
   $('#f-url').value = rec ? (rec.url || `https://www.youtube.com/watch?v=${rec.videoId}`) : '';
   for (const k of ['performer', 'conductor', 'ensemble', 'year', 'label', 'live', 'extra']) $('#f-' + k).value = rec?.[k] || '';
-  for (const k of ['conductor', 'performer', 'ensemble', 'label']) {
-    const vals = [...new Set(state.pieces.flatMap(pc => pc.recordings.map(r => r[k])).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
-    $('#dl-' + k).innerHTML = vals.map(v => `<option value="${esc(v)}">`).join('');
-  }
+  const p = cur(), cfg = fieldCfg(p);
+  $('#people').querySelectorAll('.field').forEach(el => {
+    const k = el.dataset.k, i = cfg.findIndex(c => c[0] === k), has = !!rec?.[k];
+    el.hidden = i < 0 && !has;
+    el.style.order = i < 0 ? 10 : i;
+    el.querySelector('span').textContent = i >= 0 ? cfg[i][1] : { performer: '연주자', conductor: '지휘자', ensemble: '오케스트라·앙상블' }[k];
+    el.querySelector('input').placeholder = '선택 또는 입력';
+  });
+  $('#rec-kind').textContent = `${KIND_NAMES[p.kind]}${p.kind === 'solo' || p.kind === 'concerto' ? ' · ' + INSTR_NAMES[p.instr] : ''}`;
   $('#rec-err').textContent = '';
   $('#btn-del-rec').style.visibility = rec ? 'visible' : 'hidden';
   $('#dlg-rec').showModal();
-  (rec ? $('#f-conductor') : $('#f-url')).focus();
+  $('#f-url').focus();
 }
 $('#btn-add-rec').addEventListener('click', () => openRecDialog(null));
 $('#form-rec').addEventListener('submit', e => {
@@ -1390,6 +1844,19 @@ $('#file-import').addEventListener('change', async e => {
     toast(`불러왔어요: 새 작품 ${added}개${replaced ? `, 덮어쓴 작품 ${replaced}개` : ''}`);
   } catch (err) { toast('이 파일은 불러올 수 없어요. 이 앱에서 내보낸 JSON인지 확인해 주세요.'); }
 });
+
+function nameGroups(field){
+  const p = cur(); if (!p) return [];
+  const count = (recs) => { const m = new Map(); recs.forEach(r => { if (r[field]) m.set(r[field], (m.get(r[field]) || 0) + 1); }); return m; };
+  const here = count(p.recordings);
+  const others = count(state.pieces.filter(x => x !== p).flatMap(x => x.recordings));
+  const groups = [];
+  if (here.size) groups.push({ label: '이 작품에서 쓴 이름', items: [...here].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ko')).map(([v, n]) => ({ v, n: `녹음 ${n}` })) });
+  if (others.size) groups.push({ label: '다른 작품에서 쓴 이름', items: [...others].sort((a, b) => a[0].localeCompare(b[0], 'ko')).map(([v]) => ({ v })) });
+  suggestions(p, field).forEach(([label, items]) => groups.push({ label: '추천 · ' + label, items }));
+  return groups;
+}
+['performer', 'conductor', 'ensemble', 'label'].forEach(k => makeCombo($('#f-' + k), () => nameGroups(k)));
 
 renderAll();
 })();
