@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>연주 비교 노트</title>
+<style>
+:root{
+  color-scheme: light;
+  --page:#f9f9f7; --surface:#fcfcfb; --surface-2:#f1f0ec; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --border-strong:rgba(11,11,11,.20);
+  --accent:#2a78d6; --accent-ink:#ffffff; --accent-soft:rgba(42,120,214,.10);
+  --s0:#2a78d6; --s1:#eb6834; --s2:#1baf7a; --s3:#eda100; --s4:#e87ba4; --s5:#008300; --s6:#6250d6; --s7:#e34948; --s8:#898781;
+  --fast:#2a78d6; --slow:#e34948;
+  --danger:#d03b3b;
+  --radius:10px;
+  font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme: dark;
+    --page:#0d0d0d; --surface:#1a1a19; --surface-2:#242422; --ink:#f0efec; --ink-2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.20);
+    --accent:#3987e5; --accent-soft:rgba(57,135,229,.16);
+    --s0:#3987e5; --s1:#d95926; --s2:#199e70; --s3:#c98500; --s4:#d55181; --s5:#0ca30c; --s6:#9085e9; --s7:#e66767;
+    --fast:#3987e5; --slow:#e66767; --danger:#e66767;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--page);color:var(--ink);font-size:14px;line-height:1.5}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:6px 12px;white-space:nowrap}
+button:hover{background:var(--surface-2)}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button.primary:hover{filter:brightness(1.06)}
+button.ghost{border-color:transparent;background:transparent}
+button.ghost:hover{background:var(--surface-2)}
+button.small{padding:3px 9px;font-size:13px}
+button.danger{color:var(--danger)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=text],input[type=url],input[type=number],textarea{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:6px 9px;width:100%}
+textarea{resize:vertical;field-sizing:content;min-height:2.4em}
+.muted{color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--c);flex:none}
+
+/* layout */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:5}
+.brand{font-weight:700;font-size:16px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.brand svg{color:var(--accent)}
+.top-actions{display:flex;gap:6px}
+label.btn{cursor:pointer;border:1px solid var(--border-strong);background:var(--surface);border-radius:8px;padding:6px 12px}
+label.btn:hover{background:var(--surface-2)}
+.banner{margin:12px 20px 0;padding:10px 14px;border-radius:var(--radius);border:1px solid var(--border-strong);background:var(--surface);font-size:13px}
+.banner b{display:block;margin-bottom:2px}
+.banner code{background:var(--surface-2);padding:1px 5px;border-radius:4px}
+.layout{display:grid;grid-template-columns:250px 1fr;min-height:calc(100vh - 53px)}
+.sidebar{border-right:1px solid var(--border);padding:16px 12px;background:var(--surface)}
+.side-head{display:flex;justify-content:space-between;align-items:center;padding:0 4px 8px;font-weight:600;color:var(--ink-2)}
+#piece-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+#piece-list .grp{font-size:11.5px;font-weight:600;color:var(--muted);padding:10px 10px 2px}
+#piece-list .grp:first-child{padding-top:2px}
+.piece-item{width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:8px;display:flex;flex-direction:column;white-space:normal}
+.piece-item:hover{background:var(--surface-2)}
+.piece-item.on{background:var(--accent-soft)}
+.pi-title{font-weight:600;line-height:1.3}
+.pi-sub{font-size:12px;color:var(--muted)}
+.help{margin-top:24px;padding:12px;border-radius:var(--radius);background:var(--surface-2);font-size:12.5px;color:var(--ink-2)}
+.help h4{margin:0 0 6px;font-size:12.5px;color:var(--ink)}
+.help ol{margin:0 0 10px;padding-left:18px}
+.help kbd,.kbd{font-family:ui-monospace,monospace;font-size:11.5px;border:1px solid var(--border-strong);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--surface)}
+.help dl{display:grid;grid-template-columns:auto 1fr;gap:3px 8px;margin:0}
+.help dd{margin:0}
+main{padding:20px 24px 60px;min-width:0}
+.piece-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.piece-head h1{margin:0;font-size:22px;letter-spacing:-.01em;line-height:1.25}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:2px;margin:16px 0 14px;border-bottom:1px solid var(--border)}
+.tabs button{border:0;border-radius:0;background:transparent;padding:8px 14px;border-bottom:2px solid transparent;margin-bottom:-1px;color:var(--ink-2)}
+.tabs button.on{border-bottom-color:var(--ink);color:var(--ink);font-weight:600}
+.empty{padding:40px 20px;text-align:center;color:var(--ink-2);border:1px dashed var(--border-strong);border-radius:var(--radius)}
+.empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+
+/* compare picker */
+.pick{margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px}
+.pick-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pick-head button{font-weight:600;padding-left:4px}
+.pick .caret{display:inline-block;transition:transform .15s}
+.pick.closed .caret{transform:rotate(-90deg)}
+.pick.closed #pick-body{display:none}
+#pick-summary{font-size:13px;color:var(--ink-2)}
+#pick-summary b{color:var(--ink)}
+.pick-filters{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;padding:8px 0 10px}
+.pick-filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink-2)}
+.pick-filters select,.pick-filters input{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:5px 8px;font-size:13px;min-width:120px;max-width:200px}
+.pick-filters select.active,.pick-filters input.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.pick-filters .yr{display:flex;align-items:center;gap:4px}
+.pick-filters .yr input{min-width:0;width:78px}
+.pick-list{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0 8px}
+.pick-item{display:flex;align-items:center;gap:8px;text-align:left;border-radius:8px;padding:6px 10px;white-space:normal;max-width:300px;background:var(--surface);opacity:.62}
+.pick-item .sw{width:12px;height:12px;border-radius:3px;background:transparent;border:1.5px solid var(--muted)}
+.pick-item.on{opacity:1;border-color:var(--c);background:color-mix(in oklab,var(--c) 9%,var(--surface))}
+.pick-item.on .sw{background:var(--c);border-color:var(--c)}
+.pick-item .pm{display:block;font-weight:600;font-size:13px;line-height:1.3}
+.pick-item .ps{display:block;font-size:11.5px;color:var(--ink-2);line-height:1.3}
+.pick-foot{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:4px}
+.pick-foot .muted{font-size:12px}
+.field-row.three{grid-template-columns:1fr 1fr 1fr}
+dialog select{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:6px 9px;width:100%}
+
+/* listen */
+.section-bar{position:sticky;top:53px;z-index:3;background:var(--page);padding:6px 0 10px;margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border-radius:999px;padding:4px 12px 4px 5px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.chip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip.on .chip-n{background:var(--surface);color:var(--ink)}
+.chip.live::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--danger);margin-left:2px}
+.chip-n{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--surface-2);font-size:11.5px;font-weight:600;color:var(--ink-2)}
+.relay-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:13px}
+.relay-row input{width:64px;padding:3px 6px}
+#relay-status{font-weight:500}
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.rec-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;border-top:3px solid var(--c)}
+.rec-card.playing{box-shadow:0 0 0 2px var(--c)}
+.card-top{display:flex;align-items:center;gap:8px;padding:10px 12px}
+.card-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--c);color:#fff;font-size:12px;font-weight:700;flex:none}
+.card-title{flex:1;min-width:0}
+.ct-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct-sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-wrap{position:relative;aspect-ratio:16/9;background:#000}
+.player-wrap iframe,.player-slot{position:absolute;inset:0;width:100%;height:100%;border:0}
+.player-slot{display:grid;place-items:center;color:#aaa;font-size:13px}
+.player-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:16px;text-align:center;background:#111;color:#eee;font-size:13px}
+.player-msg a{color:#9ec5f4}
+.card-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:9px}
+.now-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.now-time{font-variant-numeric:tabular-nums;font-weight:600}
+.now-sec{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn-row{display:flex;gap:6px;flex-wrap:wrap}
+.btn-row button{font-size:13px;padding:5px 10px}
+.sec-info{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:6px 9px}
+.sec-info b{color:var(--ink);font-weight:600}
+.note-label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.note-label textarea{font-size:13px}
+details.markers{border-top:1px solid var(--border);padding-top:8px}
+details.markers summary{cursor:pointer;font-size:12.5px;color:var(--ink-2);user-select:none}
+.mk-table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px}
+.mk-table td{padding:2px 2px}
+.mk-table tr.sel td{background:var(--accent-soft)}
+.mk-table tr.sel td:first-child{border-radius:6px 0 0 6px}
+.mk-table tr.sel td:last-child{border-radius:0 6px 6px 0}
+.mk-name{max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px!important}
+.mk-table input{width:74px;padding:2px 6px;font-variant-numeric:tabular-nums;font-size:12.5px}
+.mk-table button{padding:2px 7px;font-size:12px}
+.mk-hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+/* charts */
+.viz-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px}
+.viz-card h3{margin:0;font-size:15px}
+.caption{margin:2px 0 12px;font-size:12.5px;color:var(--ink-2)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--ink-2);margin-bottom:8px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.tl-row{display:grid;grid-template-columns:150px 1fr 60px;align-items:center;gap:10px;margin:6px 0}
+.tl-label{display:flex;align-items:center;gap:6px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-label span.t{overflow:hidden;text-overflow:ellipsis}
+.tl-track{position:relative;height:22px}
+.tl-seg{position:absolute;top:0;bottom:0;border-radius:4px;background:var(--c);opacity:.42;cursor:pointer}
+.tl-seg.alt{opacity:.62}
+.tl-seg.sel{opacity:1}
+.tl-seg:hover{outline:2px solid var(--ink);outline-offset:1px}
+.tl-total{font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right}
+.tl-axis{position:relative;height:18px;margin-left:160px;margin-right:70px;border-top:1px solid var(--axis)}
+.tl-axis span{position:absolute;top:2px;transform:translateX(-50%);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+#tempo-chart svg{display:block;width:100%;overflow:visible}
+#tempo-chart text{font-size:11px;fill:var(--muted);font-family:inherit}
+#tempo-chart text.dl{fill:var(--ink-2);font-size:11.5px}
+.dur-wrap{overflow-x:auto}
+.dur-table{border-collapse:separate;border-spacing:2px;font-size:12.5px;min-width:100%}
+.dur-table th{font-weight:600;text-align:left;padding:4px 8px;white-space:nowrap}
+.dur-table thead th{font-size:12px;color:var(--ink-2)}
+.dur-table thead th .sw{margin-right:5px;vertical-align:-1px}
+.dur-table td{padding:4px 8px;border-radius:4px;font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer}
+.dur-table td .dev{color:var(--ink-2);font-size:11.5px;margin-left:6px}
+.dur-table tbody th{font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.dur-table tr.sel th{color:var(--accent)}
+.dur-table tr.total th,.dur-table tr.total td{border-top:1px solid var(--axis);font-weight:600;cursor:default}
+.div-legend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2);margin-top:10px}
+.div-legend .bar{width:140px;height:8px;border-radius:4px;background:linear-gradient(90deg,color-mix(in oklab,var(--fast) 55%,var(--surface)),var(--surface-2),color-mix(in oklab,var(--slow) 55%,var(--surface)))}
+.tooltip{position:fixed;z-index:50;pointer-events:none;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:0 6px 24px rgba(0,0,0,.14);max-width:360px}
+.tooltip .tt-h{font-weight:600;margin-bottom:4px}
+.tooltip .tt-r{display:flex;align-items:center;gap:14px;justify-content:space-between}
+.tooltip .tt-r span:first-child{display:flex;align-items:center;gap:6px}
+.tooltip .tt-v{font-variant-numeric:tabular-nums;color:var(--ink-2);white-space:nowrap}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;border-left:3px solid var(--c)}
+.stat .k{font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat .d{font-size:12px;color:var(--muted)}
+
+/* notes */
+.sub-h{font-size:15px;margin:4px 0 10px}
+.note-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:26px}
+.note-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px;border-top:3px solid var(--c)}
+.nc-head{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.note-card a{font-size:12.5px;color:var(--accent);text-decoration:none}
+.sec-notes{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px}
+.sec-notes h4{margin:0 0 8px;font-size:14px;display:flex;align-items:center;gap:8px}
+.sn-row{display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:start;margin:5px 0}
+.sn-name{display:flex;align-items:center;gap:6px;font-size:13px;padding-top:6px;min-width:0}
+.sn-name .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sn-name .muted{font-size:11.5px;margin-left:auto;font-variant-numeric:tabular-nums}
+.sn-row textarea{font-size:13px}
+
+/* dialogs */
+dialog{border:1px solid var(--border-strong);border-radius:14px;padding:0;background:var(--surface);color:var(--ink);width:min(520px,calc(100vw - 32px));box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(0,0,0,.35)}
+dialog form{padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+dialog h2{margin:0;font-size:17px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.field > span{font-weight:600}
+.field small{color:var(--muted);font-size:12px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dlg-actions{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
+.err{color:var(--danger);font-size:12.5px;min-height:1em}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:999px;font-size:13px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100vw - 32px)}
+
+@media (max-width:800px){
+  .layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .sidebar{border-right:0;border-bottom:1px solid var(--border)}
+  .help{display:none}
+  main{padding:16px}
+  .section-bar{top:53px}
+  .tl-row{grid-template-columns:100px 1fr 50px}
+  .tl-axis{margin-left:110px;margin-right:60px}
+  .sn-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 18V8M9 18V4M14 18v-7M19 18V9"/></svg>
+    연주 비교 노트
+  </div>
+  <div class="top-actions">
+    <button id="btn-export" title="모든 작품과 메모를 JSON 파일로 저장">내보내기</button>
+    <label class="btn" title="내보낸 JSON 파일 불러오기">불러오기<input type="file" id="file-import" accept=".json,application/json" hidden></label>
+  </div>
+</header>
+<div id="banner" class="banner" hidden></div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="side-head"><span>작품</span><button id="btn-new-piece" class="small">+ 새 작품</button></div>
+    <ul id="piece-list"></ul>
+    <div class="help">
+      <h4>사용 순서</h4>
+      <ol>
+        <li>작품과 구간(악장·변주 등)을 만들어요</li>
+        <li>유튜브/유튜브 뮤직 링크로 녹음을 추가하고 지휘자·연주자·연도를 적어요</li>
+        <li>‘비교할 녹음 고르기’에서 비교할 녹음을 골라요</li>
+        <li>각 녹음에서 구간 시작 시간을 표시해요</li>
+        <li>같은 구간을 바꿔 들으며 비교해요</li>
+      </ol>
+      <h4>단축키 (비교 듣기 탭)</h4>
+      <dl>
+        <dt><kbd>1</kbd>–<kbd>8</kbd></dt><dd>그 녹음의 같은 지점으로 전환</dd>
+        <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>이전/다음 구간 선택</dd>
+        <dt><kbd>M</kbd></dt><dd>재생 중인 녹음의 선택 구간 시작을 지금으로 표시하고 다음 구간으로</dd>
+        <dt><kbd>Space</kbd></dt><dd>재생/일시정지</dd>
+      </dl>
+    </div>
+  </aside>
+
+  <main>
+    <div id="empty-main" class="empty" hidden><b>작품이 없어요</b>왼쪽의 ‘+ 새 작품’으로 비교할 곡을 만들어 보세요.</div>
+    <section id="piece-view" hidden>
+      <div class="piece-head">
+        <div>
+          <div id="piece-composer" class="muted"></div>
+          <h1 id="piece-title"></h1>
+        </div>
+        <div class="row">
+          <button id="btn-edit-piece">작품 편집</button>
+          <button id="btn-add-rec" class="primary">+ 녹음 추가</button>
+        </div>
+      </div>
+      <div id="pick" class="pick">
+        <div class="pick-head">
+          <button id="pick-toggle" class="ghost small" aria-expanded="true"><span class="caret">▾</span> 비교할 녹음 고르기</button>
+          <span id="pick-summary"></span>
+        </div>
+        <div id="pick-body">
+          <div class="pick-filters">
+            <label>지휘자<select data-f="conductor"></select></label>
+            <label>연주자<select data-f="performer"></select></label>
+            <label>오케스트라·앙상블<select data-f="ensemble"></select></label>
+            <label>형태<select data-f="live"><option value="">전체</option><option value="studio">스튜디오</option><option value="live">라이브</option></select></label>
+            <label>연도<span class="yr"><input data-f="yFrom" type="number" inputmode="numeric" placeholder="부터"><span>–</span><input data-f="yTo" type="number" inputmode="numeric" placeholder="까지"></span></label>
+            <label>정렬<select id="pick-sort"><option value="added">추가한 순</option><option value="year">연도순</option><option value="conductor">지휘자순</option><option value="performer">연주자순</option></select></label>
+            <button id="pick-reset" class="ghost small">필터 초기화</button>
+          </div>
+          <div id="pick-list" class="pick-list"></div>
+          <div class="pick-foot">
+            <button id="pick-all" class="small">보이는 녹음 모두 선택</button>
+            <button id="pick-none" class="small">모두 해제</button>
+            <span id="pick-hidden" class="muted"></span>
+          </div>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button data-tab="listen" role="tab">비교 듣기</button>
+        <button data-tab="chart" role="tab">템포·시간 차트</button>
+        <button data-tab="notes" role="tab">해설 노트</button>
+      </nav>
+
+      <div id="tab-listen" class="tab-panel">
+        <div class="section-bar">
+          <div id="section-chips" class="chips"></div>
+          <div class="relay-row">
+            <button id="btn-relay" class="primary">▶ 선택 구간 릴레이 듣기</button>
+            <label>연주당 <input id="relay-limit" type="number" min="0" step="5" value="0"> 초까지 <span class="muted">(0 = 구간 전체)</span></label>
+            <button id="btn-stop">■ 정지</button>
+            <span id="relay-status"></span>
+          </div>
+        </div>
+        <div id="rec-grid" class="rec-grid"></div>
+        <div id="listen-empty" class="empty" hidden><b>아직 녹음이 없어요</b>‘+ 녹음 추가’를 눌러 유튜브나 유튜브 뮤직 링크를 붙여넣으세요.</div>
+      </div>
+
+      <div id="tab-chart" class="tab-panel" hidden>
+        <div id="chart-empty" class="empty" hidden><b>차트에 쓸 시간 정보가 아직 없어요</b>비교 듣기 탭에서 녹음마다 구간 시작 시간을 표시하면 연주 시간과 템포 차이가 여기에 나타나요.</div>
+        <div id="chart-content">
+          <div id="stat-row" class="stat-row"></div>
+          <div class="viz-card">
+            <h3>전체 흐름</h3>
+            <p class="caption">막대 하나가 녹음 하나, 칸 하나가 구간이에요. 길수록 그 구간을 오래 연주했다는 뜻이에요. 칸을 누르면 그 구간이 선택돼요.</p>
+            <div id="timeline"></div>
+          </div>
+          <div class="viz-card">
+            <h3>구간별 상대 템포</h3>
+            <p class="caption">같은 구간을 연주한 길이로 계산했어요. 1.00×는 녹음들의 중간값이고, 위로 갈수록 빠른 연주예요. 반복을 생략하거나 넣은 녹음은 실제 템포보다 빠르거나 느리게 보일 수 있어요.</p>
+            <div id="tempo-legend" class="legend"></div>
+            <div id="tempo-chart"></div>
+          </div>
+          <div class="viz-card">
+            <h3>구간별 연주 시간</h3>
+            <p class="caption">퍼센트는 그 구간 중간값과의 차이예요.</p>
+            <div class="dur-wrap"><div id="dur-table"></div></div>
+            <div class="div-legend"><span>빠름(짧음)</span><span class="bar"></span><span>느림(긺)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-notes" class="tab-panel" hidden>
+        <div id="notes-content"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog id="dlg-piece">
+  <form id="form-piece">
+    <h2 id="dlg-piece-title">새 작품</h2>
+    <label class="field"><span>작품명</span><input type="text" id="f-title" placeholder="예: 골드베르크 변주곡 BWV 988" required></label>
+    <label class="field"><span>작곡가</span><input type="text" id="f-composer" placeholder="예: J. S. 바흐"></label>
+    <label class="field"><span>구간</span>
+      <textarea id="f-sections" rows="7" placeholder="한 줄에 하나씩&#10;1악장 Allegro&#10;2악장 Adagio&#10;3악장 Presto"></textarea>
+      <small>악장, 변주, 주제처럼 비교하고 싶은 단위로 나눠요. 한 줄에 하나씩 적고, 이름만 고치면 표시해 둔 시간은 그대로 남아요.</small>
+    </label>
+    <div class="dlg-actions">
+      <button type="button" id="btn-del-piece" class="ghost danger">작품 삭제</button>
+      <div class="row"><button type="button" data-close>취소</button><button type="submit" class="primary">저장</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-rec">
+  <form id="form-rec">
+    <h2 id="dlg-rec-title">녹음 추가</h2>
+    <label class="field"><span>유튜브 또는 유튜브 뮤직 링크</span><input type="text" id="f-url" placeholder="https://music.youtube.com/watch?v=…" required autocomplete="off">
+      <small>곡 하나짜리 링크(watch?v=…, youtu.be/…)를 넣어주세요. 링크에 시작 시간(&amp;t=)이 있으면 첫 구간 시작으로 써요.</small></label>
+    <div class="field-row">
+      <label class="field"><span>지휘자</span><input type="text" id="f-conductor" list="dl-conductor" placeholder="예: 카라얀" autocomplete="off"></label>
+      <label class="field"><span>연주자 (독주자)</span><input type="text" id="f-performer" list="dl-performer" placeholder="예: 굴드" autocomplete="off"></label>
+    </div>
+    <label class="field"><span>오케스트라·앙상블</span><input type="text" id="f-ensemble" list="dl-ensemble" placeholder="예: 베를린 필하모닉" autocomplete="off"></label>
+    <div class="field-row three">
+      <label class="field"><span>녹음 연도</span><input type="text" id="f-year" inputmode="numeric" placeholder="예: 1962"></label>
+      <label class="field"><span>레이블</span><input type="text" id="f-label" list="dl-label" placeholder="예: DG" autocomplete="off"></label>
+      <label class="field"><span>형태</span><select id="f-live"><option value="">모름</option><option value="studio">스튜디오</option><option value="live">라이브</option></select></label>
+    </div>
+    <label class="field"><span>기타 정보</span><input type="text" id="f-extra" placeholder="예: 리마스터, 반복 생략, 공연 장소"></label>
+    <small class="muted">지휘자·연주자·오케스트라는 이 기준으로 녹음을 걸러 비교해요. 같은 사람은 같은 표기로 적어주세요(입력하면 기존 이름이 제안돼요). 지휘자와 연주자를 모두 비우면 영상 제목이 이름으로 쓰여요.</small>
+    <datalist id="dl-conductor"></datalist><datalist id="dl-performer"></datalist><datalist id="dl-ensemble"></datalist><datalist id="dl-label"></datalist>
+    <div class="err" id="rec-err"></div>
+    <div class="dlg-actions">
+      <button type="button" id="btn-del-rec" class="ghost danger">녹음 삭제</button>
+      <div class="row"><button type="button" data-close>취소</button><button type="submit" class="primary">저장</button></div>
+    </div>
+  </form>
+</dialog>
+
+<div id="tooltip" class="tooltip" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+(() => {
+'use strict';
+
+/* ---------- utilities ---------- */
+const KEY = 'perf-compare-v1';
+const $ = (s, el = document) => el.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const isNum = v => typeof v === 'number' && isFinite(v);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmt(t){
+  if (!isNum(t)) return '';
+  t = Math.max(0, t);
+  const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = Math.floor(t % 60);
+  return h ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+}
+function parseTime(str){
+  str = String(str ?? '').trim();
+  if (!str) return null;
+  if (/^\d+(\.\d+)?$/.test(str)) return parseFloat(str);
+  const parts = str.split(':');
+  if (parts.length > 3 || parts.some(p => !/^\d+(\.\d+)?$/.test(p.trim()))) return NaN;
+  return parts.reduce((a, p) => a * 60 + parseFloat(p), 0);
+}
+function median(arr){
+  const a = arr.filter(isNum).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+function niceTicks(lo, hi, count){
+  const span = hi - lo; if (span <= 0) return [lo];
+  const step0 = span / count, mag = Math.pow(10, Math.floor(Math.log10(step0))), err = step0 / mag;
+  const step = (err >= 7.5 ? 10 : err >= 3.5 ? 5 : err >= 1.5 ? 2 : 1) * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+function parseYouTube(input){
+  const s = String(input || '').trim();
+  if (/^[\w-]{11}$/.test(s)) return { id: s, t: null };
+  let u;
+  try { u = new URL(/^https?:\/\//i.test(s) ? s : 'https://' + s); } catch { return null; }
+  const host = u.hostname.replace(/^(www|m)\./, '');
+  let id = null;
+  if (host === 'youtu.be') id = u.pathname.slice(1).split('/')[0];
+  else if (host === 'youtube.com' || host.endsWith('.youtube.com') || host.endsWith('youtube-nocookie.com')) {
+    id = u.searchParams.get('v');
+    if (!id) { const m = u.pathname.match(/^\/(?:embed|shorts|live|v)\/([\w-]{11})/); if (m) id = m[1]; }
+  }
+  if (!id || !/^[\w-]{11}$/.test(id)) return null;
+  const tRaw = u.searchParams.get('t') || u.searchParams.get('start');
+  let t = null;
+  if (tRaw) {
+    const m = tRaw.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+    if (m && (m[1] || m[2] || m[3])) t = (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0);
+  }
+  return { id, t };
+}
+let toastTimer;
+function toast(msg){
+  const el = $('#toast'); el.textContent = msg; el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.hidden = true, 2600);
+}
+function banner(html){ const b = $('#banner'); b.innerHTML = html; b.hidden = false; }
+
+/* ---------- state ---------- */
+const emptyFilter = () => ({ conductor: '', performer: '', ensemble: '', live: '', yFrom: '', yTo: '' });
+function newPiece(title, composer, names){
+  return { id: uid(), title, composer, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true } };
+}
+function seedState(){
+  const p = newPiece('교향곡 5번 c단조, Op. 67', '베토벤', ['1악장 Allegro con brio', '2악장 Andante con moto', '3악장 Allegro', '4악장 Allegro']);
+  return { pieces: [p], currentId: p.id };
+}
+function normalizePiece(p){
+  p.id = p.id || uid();
+  p.title = p.title || '제목 없음';
+  p.composer = p.composer || '';
+  p.sections = Array.isArray(p.sections) && p.sections.length ? p.sections.map(s => ({ id: s.id || uid(), name: s.name || '구간' })) : [{ id: uid(), name: '전체' }];
+  p.recordings = (Array.isArray(p.recordings) ? p.recordings : []).filter(r => r && r.videoId).map(r => ({
+    id: r.id || uid(), videoId: r.videoId, url: r.url || '', performer: r.performer || '', conductor: r.conductor || '', ensemble: r.ensemble || '',
+    year: r.year || '', label: r.label || '', live: r.live === 'live' || r.live === 'studio' ? r.live : '', extra: r.extra || r.detail || '',
+    videoTitle: r.videoTitle || '', markers: r.markers && typeof r.markers === 'object' ? r.markers : {},
+    end: isNum(r.end) ? r.end : null, duration: isNum(r.duration) ? r.duration : null,
+    note: r.note || '', sectionNotes: r.sectionNotes && typeof r.sectionNotes === 'object' ? r.sectionNotes : {},
+    slot: isNum(r.slot) ? r.slot : null
+  }));
+  p.recordings.forEach(r => { if (r.slot == null) r.slot = nextSlot(p, r); });
+  const v = p.view || {};
+  p.view = { f: Object.assign(emptyFilter(), v.f || {}), excluded: Array.isArray(v.excluded) ? v.excluded : [], sort: v.sort || 'added', open: v.open !== false };
+  return p;
+}
+function loadState(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s && Array.isArray(s.pieces)) { s.pieces.forEach(normalizePiece); return s; }
+    }
+  } catch (e) {}
+  return seedState();
+}
+let state = loadState();
+let saveTimer, dirty = false;
+function save(){
+  dirty = true;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flush, 250);
+}
+function flush(){ clearTimeout(saveTimer); if (!dirty) return; dirty = false; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+addEventListener('pagehide', flush);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
+const cur = () => state.pieces.find(p => p.id === state.currentId) || null;
+function nextSlot(p, except){
+  const used = new Set(p.recordings.filter(r => r !== except && isNum(r.slot)).map(r => r.slot));
+  for (let i = 0; i < 8; i++) if (!used.has(i)) return i;
+  return 8;
+}
+const colorVar = slot => `var(--s${isNum(slot) && slot < 8 ? slot : 8})`;
+const recLabel = r => (r.performer && r.conductor ? `${r.performer} / ${r.conductor}` : r.performer || r.conductor) || r.videoTitle || '제목 불러오는 중…';
+const recLabelFull = r => recLabel(r) + (r.year ? ` (${r.year})` : '');
+const recSub = r => [r.ensemble, r.year, r.label, r.live === 'live' ? '라이브' : r.live === 'studio' ? '스튜디오' : ''].filter(Boolean).join(' · ');
+const yearNum = r => { const m = String(r.year || '').match(/\d{4}/); return m ? +m[0] : null; };
+
+/* ---------- comparison selection ---------- */
+const FKEYS = ['conductor', 'performer', 'ensemble'];
+function matchesFilter(p, r){
+  const f = p.view.f;
+  for (const k of FKEYS) if (f[k] && (f[k] === '__none' ? r[k] : r[k] !== f[k])) return false;
+  if (f.live && r.live !== f.live) return false;
+  const y = yearNum(r), a = parseInt(f.yFrom), b = parseInt(f.yTo);
+  if ((a || b) && y == null) return false;
+  if (a && y < a) return false;
+  if (b && y > b) return false;
+  return true;
+}
+function sortRecs(p, list){
+  const k = p.view.sort, idx = new Map(p.recordings.map((r, i) => [r.id, i]));
+  const by = {
+    year: (a, b) => (yearNum(a) ?? 9999) - (yearNum(b) ?? 9999),
+    conductor: (a, b) => (a.conductor || '\uffff').localeCompare(b.conductor || '\uffff', 'ko') || (yearNum(a) ?? 9999) - (yearNum(b) ?? 9999),
+    performer: (a, b) => (a.performer || '\uffff').localeCompare(b.performer || '\uffff', 'ko') || (yearNum(a) ?? 9999) - (yearNum(b) ?? 9999)
+  }[k];
+  return [...list].sort((a, b) => (by ? by(a, b) : 0) || idx.get(a.id) - idx.get(b.id));
+}
+const visibleRecs = p => sortRecs(p, p.recordings.filter(r => matchesFilter(p, r)));
+const selectedRecs = p => visibleRecs(p).filter(r => !p.view.excluded.includes(r.id));
+function ensureColors(p){
+  // A newly included recording takes a free colour; recordings already on screen never change colour.
+  const sel = selectedRecs(p), taken = new Set();
+  const needs = [];
+  sel.forEach(r => { if (isNum(r.slot) && r.slot < 8 && !taken.has(r.slot)) taken.add(r.slot); else needs.push(r); });
+  let changed = false;
+  needs.forEach(r => {
+    let slot = 8;
+    for (let i = 0; i < 8; i++) if (!taken.has(i)) { slot = i; break; }
+    if (slot < 8) {
+      taken.add(slot);
+      p.recordings.forEach(o => { if (o !== r && o.slot === slot && !sel.includes(o)) o.slot = 8; });
+    }
+    if (r.slot !== slot) { r.slot = slot; changed = true; }
+  });
+  if (changed) save();
+}
+const findRec = id => cur()?.recordings.find(r => r.id === id) || null;
+
+/* ---------- section math ---------- */
+const secIndex = (p, sid) => p.sections.findIndex(s => s.id === sid);
+const secName = (p, sid) => p.sections.find(s => s.id === sid)?.name || '';
+function sectionStart(rec, sid){ const v = rec.markers?.[sid]; return isNum(v) ? v : null; }
+function recEnd(rec){ return isNum(rec.end) ? rec.end : (isNum(rec.duration) && rec.duration > 0 ? rec.duration : null); }
+function playEnd(p, rec, sid){
+  const i = secIndex(p, sid);
+  for (let j = i + 1; j < p.sections.length; j++) { const t = sectionStart(rec, p.sections[j].id); if (t != null) return t; }
+  return recEnd(rec);
+}
+function sectionDuration(p, rec, sid){
+  const i = secIndex(p, sid), a = sectionStart(rec, sid);
+  if (a == null) return null;
+  const b = i + 1 < p.sections.length ? sectionStart(rec, p.sections[i + 1].id) : recEnd(rec);
+  return b != null && b > a ? b - a : null;
+}
+function sectionAt(p, rec, t){
+  let found = null, best = -Infinity;
+  for (const s of p.sections) { const st = sectionStart(rec, s.id); if (st != null && st <= t + 0.05 && st >= best) { best = st; found = s.id; } }
+  return found;
+}
+
+/* ---------- UI state ---------- */
+const ui = { tab: 'listen', sectionId: null, activeRecId: null, relay: null, openMarkers: new Set() };
+const players = {};
+let ytReady = false;
+
+/* ---------- YouTube ---------- */
+if (location.protocol === 'file:') {
+  banner('<b>파일을 바로 열면 유튜브 영상이 재생되지 않을 수 있어요 (오류 153).</b>이 파일이 있는 폴더에서 터미널로 <code>python3 -m http.server 8000</code>을 실행한 뒤 <code>http://localhost:8000</code>으로 열거나, GitHub Pages·Netlify 같은 곳에 올려서 쓰세요.');
+}
+window.onYouTubeIframeAPIReady = () => { ytReady = true; cur()?.recordings.forEach(ensurePlayer); };
+(() => {
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  tag.onerror = () => banner('<b>유튜브 플레이어를 불러오지 못했어요.</b>인터넷 연결을 확인하고 새로고침해 주세요. 메모와 차트는 그대로 쓸 수 있어요.');
+  document.head.appendChild(tag);
+})();
+
+function ensurePlayer(rec){
+  if (!ytReady || players[rec.id]) return;
+  const slotId = 'yt-' + rec.id;
+  if (!document.getElementById(slotId)) return;
+  const entry = { player: null, ready: false, error: null };
+  players[rec.id] = entry;
+  const pv = { playsinline: 1, rel: 0 };
+  if (location.origin && location.origin !== 'null') pv.origin = location.origin;
+  entry.player = new YT.Player(slotId, {
+    videoId: rec.videoId, width: '100%', height: '100%', playerVars: pv,
+    events: {
+      onReady: () => { entry.ready = true; onPlayerReady(rec.id); },
+      onStateChange: e => onPlayerState(rec.id, e.data),
+      onError: e => onPlayerError(rec.id, e.data)
+    }
+  });
+}
+function destroyPlayer(id){
+  const e = players[id];
+  if (e) { try { e.player.destroy(); } catch (err) {} delete players[id]; }
+  if (ui.activeRecId === id) ui.activeRecId = null;
+}
+function onPlayerReady(id){
+  const rec = findRec(id), e = players[id];
+  if (!rec || !e) return;
+  try {
+    const d = e.player.getDuration(); if (d > 0) rec.duration = d;
+    const title = e.player.getVideoData?.().title;
+    if (title) rec.videoTitle = title;
+  } catch (err) {}
+  save(); updateCardTitle(rec);
+}
+function onPlayerState(id, st){
+  if (st === 1) { // playing
+    pauseOthers(id);
+    if (ui.relay && ui.relay.queue[ui.relay.i] !== id) stopRelay();
+    ui.activeRecId = id;
+    const rec = findRec(id), e = players[id];
+    if (rec && e && !isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(); } }
+    markPlaying();
+  } else if (st === 0) { // ended
+    if (ui.relay && ui.relay.queue[ui.relay.i] === id) relayNext();
+    markPlaying();
+  } else if (st === 2) markPlaying();
+}
+function onPlayerError(id, code){
+  const e = players[id]; if (e) e.error = code;
+  const rec = findRec(id); const card = cardEl(id); if (!rec || !card) return;
+  const msg = {
+    2: '링크의 영상 ID가 올바르지 않아요.',
+    5: '이 브라우저에서 재생할 수 없는 영상이에요.',
+    100: '영상을 찾을 수 없어요. 삭제되었거나 비공개일 수 있어요.',
+    101: '업로더가 다른 사이트에서의 재생을 막아둔 영상이에요. 같은 녹음의 다른 업로드(예: “Provided to YouTube by …” 음원)를 찾아보세요.',
+    150: '업로더가 다른 사이트에서의 재생을 막아둔 영상이에요. 같은 녹음의 다른 업로드(예: “Provided to YouTube by …” 음원)를 찾아보세요.',
+    153: '유튜브가 재생을 거부했어요. 파일을 직접 열지 말고 로컬 서버나 웹사이트 주소로 열어주세요.'
+  }[code] || `재생 오류가 났어요 (코드 ${code}).`;
+  const box = card.querySelector('.player-msg');
+  box.innerHTML = `<div>${esc(msg)}</div><a href="https://www.youtube.com/watch?v=${esc(rec.videoId)}" target="_blank" rel="noopener">유튜브에서 열기 ↗</a>`;
+  box.hidden = false;
+  if (ui.relay && ui.relay.queue[ui.relay.i] === id) relayNext();
+}
+function pauseOthers(id){
+  for (const [k, e] of Object.entries(players)) {
+    if (k === id || !e.ready) continue;
+    try { const s = e.player.getPlayerState(); if (s === 1 || s === 3) e.player.pauseVideo(); } catch (err) {}
+  }
+}
+function seekPlay(rec, t){
+  const e = players[rec.id];
+  if (!e || !e.ready) { toast('플레이어를 준비하는 중이에요. 잠시 후 다시 눌러주세요.'); return false; }
+  if (e.error) { toast('이 녹음은 여기서 재생할 수 없어요.'); return false; }
+  pauseOthers(rec.id);
+  ui.activeRecId = rec.id;
+  e.player.seekTo(Math.max(0, t), true);
+  e.player.playVideo();
+  markPlaying();
+  return true;
+}
+function currentTimeOf(id){ const e = players[id]; try { return e && e.ready ? e.player.getCurrentTime() : null; } catch (err) { return null; } }
+function isPlaying(id){ const e = players[id]; try { return !!(e && e.ready && e.player.getPlayerState() === 1); } catch (err) { return false; } }
+
+/* ---------- playback actions ---------- */
+function playSection(rec, sid){
+  stopRelay();
+  const p = cur(), st = sectionStart(rec, sid);
+  if (st == null) { toast(`${recLabel(rec)}: ‘${secName(p, sid)}’ 시작 시간을 먼저 표시해 주세요.`); return; }
+  seekPlay(rec, st);
+}
+function switchTo(target){
+  const p = cur();
+  stopRelay();
+  const from = findRec(ui.activeRecId);
+  if (!from || from.id === target.id || !players[from.id]?.ready) { playSection(target, ui.sectionId); return; }
+  const t = currentTimeOf(from.id);
+  const sid = sectionAt(p, from, t) || ui.sectionId;
+  const a = sectionStart(from, sid), b = playEnd(p, from, sid);
+  const a2 = sectionStart(target, sid), b2 = playEnd(p, target, sid);
+  if (a2 == null) { toast(`${recLabel(target)}: ‘${secName(p, sid)}’ 시작 시간을 먼저 표시해 주세요.`); return; }
+  let tt = a2, pct = null;
+  if (a != null && b != null && b2 != null && b > a) {
+    const f = Math.min(1, Math.max(0, (t - a) / (b - a)));
+    tt = a2 + f * (b2 - a2); pct = Math.round(f * 100);
+  } else if (a != null) tt = a2 + Math.max(0, t - a);
+  if (sid !== ui.sectionId) selectSection(sid);
+  if (seekPlay(target, tt)) toast(`⇄ ${recLabel(target)} · ${secName(p, sid)}${pct != null ? ` ${pct}% 지점` : ''}`);
+}
+function togglePlay(){
+  const id = ui.activeRecId; const e = players[id];
+  if (!e || !e.ready) { const rec = cur()?.recordings[0]; if (rec) playSection(rec, ui.sectionId); return; }
+  if (isPlaying(id)) e.player.pauseVideo(); else e.player.playVideo();
+}
+function stopAll(){
+  stopRelay();
+  for (const e of Object.values(players)) { try { if (e.ready) e.player.pauseVideo(); } catch (err) {} }
+}
+function markNow(rec){
+  rec = rec || findRec(ui.activeRecId);
+  const p = cur();
+  if (!rec) { toast('먼저 녹음 하나를 재생해 주세요.'); return; }
+  const t = currentTimeOf(rec.id);
+  if (t == null) { toast('플레이어를 준비하는 중이에요.'); return; }
+  rec.markers[ui.sectionId] = Math.round(t * 10) / 10;
+  save();
+  toast(`${recLabel(rec)} · ‘${secName(p, ui.sectionId)}’ 시작 = ${fmt(t)}`);
+  return true;
+}
+
+/* ---------- relay ---------- */
+function startRelay(){
+  const p = cur(), sid = ui.sectionId;
+  const queue = selectedRecs(p).filter(r => sectionStart(r, sid) != null && players[r.id]?.ready && !players[r.id].error).map(r => r.id);
+  if (!queue.length) { toast('이 구간의 시작 시간이 표시된 녹음이 없어요.'); return; }
+  const limit = Math.max(0, parseFloat($('#relay-limit').value) || 0);
+  ui.relay = { sid, queue, i: 0, limit, until: null, pending: false };
+  relayPlayCurrent();
+}
+function relayPlayCurrent(){
+  const R = ui.relay, p = cur(); if (!R) return;
+  const rec = findRec(R.queue[R.i]); if (!rec) { relayNext(); return; }
+  const st = sectionStart(rec, R.sid);
+  let en = playEnd(p, rec, R.sid);
+  if (R.limit > 0) en = en == null ? st + R.limit : Math.min(en, st + R.limit);
+  R.until = en; R.pending = false;
+  const e = players[rec.id];
+  pauseOthers(rec.id);
+  ui.activeRecId = rec.id;
+  e.player.seekTo(st, true); e.player.playVideo();
+  updateRelayStatus(); markPlaying();
+}
+function relayNext(){
+  const R = ui.relay; if (!R || R.pending) return;
+  R.pending = true;
+  const id = R.queue[R.i];
+  try { players[id]?.player.pauseVideo(); } catch (err) {}
+  R.i++;
+  if (R.i >= R.queue.length) { stopRelay(); toast('릴레이가 끝났어요.'); return; }
+  updateRelayStatus();
+  setTimeout(() => { if (ui.relay === R) relayPlayCurrent(); }, 700);
+}
+function stopRelay(){ if (!ui.relay) return; ui.relay = null; updateRelayStatus(); }
+function updateRelayStatus(){
+  const R = ui.relay, el = $('#relay-status');
+  if (!R) { el.textContent = ''; return; }
+  const rec = findRec(R.queue[R.i]);
+  el.textContent = `릴레이 ${Math.min(R.i + 1, R.queue.length)}/${R.queue.length} · ${rec ? recLabelFull(rec) : ''}`;
+}
+
+/* ---------- tick ---------- */
+let lastLiveSid = null;
+setInterval(() => {
+  const p = cur(); if (!p) return;
+  for (const rec of selectedRecs(p)) {
+    const e = players[rec.id]; if (!e || !e.ready) continue;
+    const card = cardEl(rec.id); if (!card) continue;
+    const t = currentTimeOf(rec.id);
+    const tEl = card.querySelector('[data-role=time]'), sEl = card.querySelector('[data-role=nowsec]');
+    if (tEl) tEl.textContent = fmt(t) + (isNum(rec.duration) ? ` / ${fmt(rec.duration)}` : '');
+    if (sEl) { const sid = sectionAt(p, rec, t); sEl.textContent = sid ? `${secIndex(p, sid) + 1}. ${secName(p, sid)}` : ''; }
+    if (!isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(); } }
+  }
+  // live chip
+  const act = findRec(ui.activeRecId);
+  const liveSid = act && isPlaying(act.id) ? sectionAt(p, act, currentTimeOf(act.id)) : null;
+  if (liveSid !== lastLiveSid) {
+    lastLiveSid = liveSid;
+    document.querySelectorAll('#section-chips .chip').forEach(c => c.classList.toggle('live', c.dataset.sid === liveSid));
+  }
+  // relay
+  const R = ui.relay;
+  if (R && !R.pending && R.until != null) {
+    const id = R.queue[R.i], t = currentTimeOf(id);
+    if (t != null && isPlaying(id) && t >= R.until - 0.15) relayNext();
+  }
+}, 200);
+
+/* ---------- rendering ---------- */
+function renderAll(){
+  renderSidebar();
+  const p = cur();
+  $('#empty-main').hidden = !!p;
+  $('#piece-view').hidden = !p;
+  if (!p) return;
+  $('#piece-title').textContent = p.title;
+  $('#piece-composer').textContent = p.composer;
+  if (!p.sections.some(s => s.id === ui.sectionId)) ui.sectionId = p.sections[0]?.id || null;
+  ensureColors(p);
+  renderPick();
+  renderTabs();
+  renderChips();
+  syncCards();
+  updateAllCards();
+  if (ui.tab === 'chart') renderChart();
+  if (ui.tab === 'notes') renderNotes();
+}
+function renderSidebar(){
+  const groups = new Map();
+  state.pieces.forEach(p => { const k = p.composer || '작곡가 미입력'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
+  $('#piece-list').innerHTML = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ko')).map(([c, ps]) =>
+    `<li class="grp">${esc(c)}</li>` + ps.sort((a, b) => a.title.localeCompare(b.title, 'ko')).map(p => `<li><button class="piece-item ${p.id === state.currentId ? 'on' : ''}" data-id="${p.id}">
+    <span class="pi-title">${esc(p.title)}</span><span class="pi-sub">녹음 ${p.recordings.length}개</span></button></li>`).join('')).join('');
+}
+const FLABEL = { conductor: '지휘자', performer: '연주자', ensemble: '오케스트라' };
+function renderPick(){
+  const p = cur(), v = p.view, box = $('#pick');
+  box.classList.toggle('closed', !v.open);
+  $('#pick-toggle').setAttribute('aria-expanded', v.open);
+  for (const k of FKEYS) {
+    const el = box.querySelector(`select[data-f="${k}"]`);
+    const counts = new Map(); let none = 0;
+    p.recordings.forEach(r => { if (r[k]) counts.set(r[k], (counts.get(r[k]) || 0) + 1); else none++; });
+    const names = [...counts.keys()].sort((a, b) => a.localeCompare(b, 'ko'));
+    if (v.f[k] && v.f[k] !== '__none' && !counts.has(v.f[k])) v.f[k] = '';
+    el.innerHTML = `<option value="">${names.length ? '전체' : '입력된 이름 없음'}</option>` + names.map(n => `<option value="${esc(n)}">${esc(n)} (${counts.get(n)})</option>`).join('') + (none && names.length ? `<option value="__none">미입력 (${none})</option>` : '');
+    el.value = v.f[k]; el.disabled = !names.length; el.classList.toggle('active', !!v.f[k]);
+  }
+  const live = box.querySelector('select[data-f="live"]'); live.value = v.f.live; live.classList.toggle('active', !!v.f.live);
+  for (const k of ['yFrom', 'yTo']) { const el = box.querySelector(`input[data-f="${k}"]`); if (document.activeElement !== el) el.value = v.f[k]; el.classList.toggle('active', !!v.f[k]); }
+  $('#pick-sort').value = v.sort;
+  const vis = visibleRecs(p), selIds = new Set(selectedRecs(p).map(r => r.id));
+  $('#pick-list').innerHTML = vis.length ? vis.map(r => `<button class="pick-item ${selIds.has(r.id) ? 'on' : ''}" data-id="${r.id}" aria-pressed="${selIds.has(r.id)}" style="--c:${colorVar(r.slot)}" title="${esc([recLabelFull(r), recSub(r), r.extra].filter(Boolean).join(' · '))}">
+      <span class="sw"></span><span><span class="pm">${esc(recLabel(r))}</span><span class="ps">${esc(recSub(r) || '정보 없음 · 편집에서 입력')}</span></span></button>`).join('')
+    : `<span class="muted">${p.recordings.length ? '필터에 맞는 녹음이 없어요.' : '녹음을 추가하면 여기서 비교할 녹음을 고를 수 있어요.'}</span>`;
+  const hiddenN = p.recordings.length - vis.length;
+  $('#pick-hidden').textContent = hiddenN ? `필터에 가려진 녹음 ${hiddenN}개` : '';
+  const parts = FKEYS.filter(k => v.f[k]).map(k => `${FLABEL[k]} ${v.f[k] === '__none' ? '미입력' : v.f[k]}`);
+  if (v.f.live) parts.push(v.f.live === 'live' ? '라이브' : '스튜디오');
+  if (v.f.yFrom || v.f.yTo) parts.push(v.f.yFrom && v.f.yTo ? `${v.f.yFrom}–${v.f.yTo}년` : v.f.yFrom ? `${v.f.yFrom}년 이후` : `${v.f.yTo}년 이전`);
+  $('#pick-summary').innerHTML = `비교 중 <b>${selIds.size}</b> / ${p.recordings.length}개` + (parts.length ? ` · 필터: ${esc(parts.join(', '))}` : '');
+}
+function afterSelectionChange(){
+  stopRelay(); save(); renderAll();
+}
+function renderTabs(){
+  document.querySelectorAll('.tabs button').forEach(b => { const on = b.dataset.tab === ui.tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  ['listen', 'chart', 'notes'].forEach(t => $('#tab-' + t).hidden = t !== ui.tab);
+}
+function renderChips(){
+  const p = cur();
+  $('#section-chips').innerHTML = p.sections.map((s, i) => `<button class="chip ${s.id === ui.sectionId ? 'on' : ''} ${s.id === lastLiveSid ? 'live' : ''}" data-sid="${s.id}" title="${esc(s.name)}"><span class="chip-n">${i + 1}</span>${esc(s.name)}</button>`).join('');
+}
+function selectSection(sid){
+  ui.sectionId = sid;
+  renderChips();
+  updateAllCards();
+  if (ui.tab === 'chart') renderChart();
+}
+const cardEl = id => $('#rec-grid')?.querySelector(`:scope > .rec-card[data-id="${id}"]`);
+function createCard(rec){
+  const el = document.createElement('article');
+  el.className = 'rec-card'; el.dataset.id = rec.id;
+  el.innerHTML = `<div class="card-top"><span class="card-num"></span><div class="card-title"><div class="ct-name"></div><div class="ct-sub"></div></div>
+    <button class="ghost small" data-act="edit">편집</button></div>
+    <div class="player-wrap"><div class="player-slot" id="yt-${rec.id}">플레이어 불러오는 중…</div><div class="player-msg" hidden></div></div>
+    <div class="card-body"></div>`;
+  return el;
+}
+function syncCards(){
+  const p = cur(), grid = $('#rec-grid');
+  const sel = selectedRecs(p);
+  const ids = new Set(sel.map(r => r.id));
+  [...grid.children].forEach(el => { if (!ids.has(el.dataset.id)) { destroyPlayer(el.dataset.id); ui.openMarkers.delete(el.dataset.id); el.remove(); } });
+  sel.forEach((rec, i) => {
+    let el = cardEl(rec.id);
+    if (!el) { el = createCard(rec); grid.appendChild(el); ensurePlayer(rec); }
+    el.style.order = i; // reorder with CSS so the YouTube iframes are never moved (moving reloads them)
+  });
+  const empty = $('#listen-empty');
+  empty.hidden = sel.length > 0;
+  empty.innerHTML = p.recordings.length
+    ? '<b>비교할 녹음이 선택되지 않았어요</b>위의 ‘비교할 녹음 고르기’에서 녹음을 켜거나 필터를 바꿔보세요.'
+    : '<b>아직 녹음이 없어요</b>‘+ 녹음 추가’를 눌러 유튜브나 유튜브 뮤직 링크를 붙여넣으세요.';
+}
+function resetPlayer(rec){
+  destroyPlayer(rec.id);
+  const card = cardEl(rec.id); if (!card) return;
+  card.querySelector('.player-wrap').innerHTML = `<div class="player-slot" id="yt-${rec.id}">플레이어 불러오는 중…</div><div class="player-msg" hidden></div>`;
+  ensurePlayer(rec);
+}
+function updateCardTitle(rec){
+  const p = cur(), el = cardEl(rec.id); if (!el) return;
+  el.style.setProperty('--c', colorVar(rec.slot));
+  el.querySelector('.card-num').textContent = selectedRecs(p).indexOf(rec) + 1;
+  el.querySelector('.ct-name').textContent = recLabel(rec);
+  el.querySelector('.ct-name').title = rec.videoTitle || '';
+  el.querySelector('.ct-sub').textContent = recSub(rec) || ((rec.performer || rec.conductor) && rec.videoTitle ? rec.videoTitle : '지휘자·오케스트라·연도는 편집에서 입력');
+  el.querySelector('.ct-sub').title = [recSub(rec), rec.extra].filter(Boolean).join(' · ');
+}
+function updateAllCards(){ cur()?.recordings.forEach(updateCard); }
+function updateCard(rec){
+  const p = cur(), el = cardEl(rec.id); if (!el) return;
+  updateCardTitle(rec);
+  const sid = ui.sectionId, si = secIndex(p, sid);
+  const st = sectionStart(rec, sid), dur = sectionDuration(p, rec, sid);
+  const marked = p.sections.filter(s => sectionStart(rec, s.id) != null).length;
+  const info = st == null
+    ? `<b>${si + 1}. ${esc(secName(p, sid))}</b> · 시작 시간 미표시 — 재생하다가 <span class="kbd">M</span> 또는 아래 ‘지금’`
+    : `<b>${si + 1}. ${esc(secName(p, sid))}</b> · 시작 ${fmt(st)}${dur != null ? ` · 길이 ${fmt(dur)}` : ''}`;
+  const rows = p.sections.map((s, i) => {
+    const v = sectionStart(rec, s.id);
+    return `<tr class="${s.id === sid ? 'sel' : ''}"><td class="mk-name" title="${esc(s.name)}">${i + 1}. ${esc(s.name)}</td>
+      <td><input type="text" inputmode="decimal" data-act="mk" data-sid="${s.id}" value="${v != null ? fmt(v) : ''}" placeholder="—" aria-label="${esc(s.name)} 시작 시간"></td>
+      <td><button data-act="mk-now" data-sid="${s.id}" title="지금 재생 위치로 표시">지금</button></td>
+      <td><button data-act="mk-go" data-sid="${s.id}" title="여기서 재생" ${v == null ? 'disabled' : ''}>▶</button></td></tr>`;
+  }).join('');
+  const endRow = `<tr><td class="mk-name" title="마지막 구간이 끝나는 시점 (박수 전). 비워두면 영상 끝.">끝 (박수 전)</td>
+      <td><input type="text" inputmode="decimal" data-act="end" value="${isNum(rec.end) ? fmt(rec.end) : ''}" placeholder="${isNum(rec.duration) ? fmt(rec.duration) : '영상 끝'}" aria-label="연주 끝 시간"></td>
+      <td><button data-act="end-now" title="지금 재생 위치로 표시">지금</button></td><td></td></tr>`;
+  el.querySelector('.card-body').innerHTML = `
+    <div class="now-row"><span class="now-time" data-role="time">${fmt(currentTimeOf(rec.id) ?? 0)}${isNum(rec.duration) ? ' / ' + fmt(rec.duration) : ''}</span><span class="now-sec" data-role="nowsec"></span></div>
+    <div class="btn-row">
+      <button data-act="play-sec" ${st == null ? 'disabled' : ''}>▶ 구간 처음부터</button>
+      <button data-act="switch" title="지금 듣던 녹음과 같은 지점으로 전환 (숫자키 ${selectedRecs(p).indexOf(rec) + 1})" ${st == null ? 'disabled' : ''}>⇄ 같은 지점으로</button>
+      <button data-act="pause" title="일시정지">⏸</button>
+    </div>
+    <div class="sec-info">${info}</div>
+    <label class="note-label">이 구간 메모<textarea data-act="secnote" rows="2" placeholder="예: 도입부를 아주 느리게, 반복 생략">${esc(rec.sectionNotes[sid] || '')}</textarea></label>
+    <details class="markers" ${ui.openMarkers.has(rec.id) ? 'open' : ''}><summary>구간 시작 시간 · ${marked}/${p.sections.length} 표시됨</summary>
+      <table class="mk-table"><tbody>${rows}${endRow}</tbody></table>
+      <div class="mk-hint">m:ss 형식으로 고칠 수 있어요. 마지막 구간 길이는 ‘끝’ 시간(없으면 영상 길이)으로 계산해요.</div>
+    </details>`;
+}
+function markPlaying(){
+  const p = cur(); if (!p) return;
+  selectedRecs(p).forEach(r => cardEl(r.id)?.classList.toggle('playing', r.id === ui.activeRecId && isPlaying(r.id)));
+  setTimeout(() => cur() === p && selectedRecs(p).forEach(r => cardEl(r.id)?.classList.toggle('playing', r.id === ui.activeRecId && isPlaying(r.id))), 400);
+}
+function afterMarkerChange(rec){
+  save(); updateCard(rec);
+  if (ui.tab === 'chart') renderChart();
+}
+
+/* ---------- charts ---------- */
+const tip = $('#tooltip');
+function showTip(html, x, y){
+  tip.innerHTML = html; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  let left = x + 14, top = y + 14;
+  if (left + r.width > innerWidth - 8) left = x - r.width - 14;
+  if (top + r.height > innerHeight - 8) top = y - r.height - 14;
+  tip.style.left = Math.max(8, left) + 'px'; tip.style.top = Math.max(8, top) + 'px';
+}
+const hideTip = () => tip.hidden = true;
+
+function chartData(p){
+  const recs = selectedRecs(p).filter(r => p.sections.some(s => sectionDuration(p, r, s.id) != null));
+  const dur = {}; recs.forEach(r => dur[r.id] = p.sections.map(s => sectionDuration(p, r, s.id)));
+  const med = p.sections.map((s, i) => { const vals = recs.map(r => dur[r.id][i]).filter(isNum); return vals.length ? median(vals) : null; });
+  const cnt = p.sections.map((s, i) => recs.filter(r => isNum(dur[r.id][i])).length);
+  const tempo = {}; recs.forEach(r => tempo[r.id] = dur[r.id].map((d, i) => isNum(d) && cnt[i] >= 2 ? med[i] / d : null));
+  return { recs, dur, med, cnt, tempo };
+}
+function renderChart(){
+  const p = cur(); if (!p) return;
+  const D = chartData(p);
+  $('#chart-empty').hidden = D.recs.length > 0;
+  $('#chart-content').hidden = D.recs.length === 0;
+  if (!D.recs.length) return;
+  renderStats(p, D); renderTimeline(p, D); renderTempo(p, D); renderTable(p, D);
+}
+function renderStats(p, D){
+  const totals = D.recs.map(r => { const ds = D.dur[r.id]; return ds.every(isNum) ? ds.reduce((a, b) => a + b, 0) : null; });
+  const medTotal = median(totals);
+  $('#stat-row').innerHTML = D.recs.map((r, i) => {
+    const tot = totals[i];
+    let sub = tot == null ? `${D.dur[r.id].filter(isNum).length}/${p.sections.length} 구간 측정됨` : '';
+    if (tot != null && medTotal && D.recs.length > 1) { const dv = (tot - medTotal) / medTotal * 100; sub = Math.abs(dv) < 0.5 ? '중간값과 비슷' : `중간값보다 ${Math.abs(dv).toFixed(0)}% ${dv > 0 ? '길게' : '짧게'}`; }
+    return `<div class="stat" style="--c:${colorVar(r.slot)}"><div class="k" title="${esc(recLabelFull(r))}">${esc(recLabelFull(r))}</div><div class="v">${tot != null ? fmt(tot) : '—'}</div><div class="d">${sub}</div></div>`;
+  }).join('');
+}
+function renderTimeline(p, D){
+  const rows = D.recs.map(r => {
+    const starts = p.sections.map(s => sectionStart(r, s.id)).filter(isNum);
+    const base = Math.min(...starts);
+    let last = base;
+    p.sections.forEach((s, i) => { const d = D.dur[r.id][i]; if (isNum(d)) last = Math.max(last, sectionStart(r, s.id) + d); });
+    return { r, base, span: last - base };
+  });
+  const maxSpan = Math.max(...rows.map(x => x.span), 1);
+  const html = rows.map(({ r, base, span }) => {
+    const segs = p.sections.map((s, i) => {
+      const d = D.dur[r.id][i]; if (!isNum(d)) return '';
+      const left = (sectionStart(r, s.id) - base) / maxSpan * 100, w = d / maxSpan * 100;
+      return `<div class="tl-seg ${i % 2 ? 'alt' : ''} ${s.id === ui.sectionId ? 'sel' : ''}" data-sid="${s.id}" data-rid="${r.id}" style="left:${left}%;width:max(2px, calc(${w}% - 2px))"></div>`;
+    }).join('');
+    return `<div class="tl-row" style="--c:${colorVar(r.slot)}"><div class="tl-label" title="${esc(recLabelFull(r))}"><span class="sw"></span><span class="t">${esc(recLabelFull(r))}</span></div><div class="tl-track">${segs}</div><div class="tl-total">${fmt(span)}</div></div>`;
+  }).join('');
+  const mins = maxSpan / 60, ticks = niceTicks(0, mins, 6);
+  const axis = `<div class="tl-axis">${ticks.map(m => `<span style="left:${m / mins * 100}%">${m}분</span>`).join('')}</div>`;
+  $('#timeline').innerHTML = html + axis;
+}
+function renderTempo(p, D){
+  const box = $('#tempo-chart'), legend = $('#tempo-legend');
+  const recs = D.recs.filter(r => D.tempo[r.id].some(isNum));
+  if (recs.length < 2) {
+    legend.innerHTML = '';
+    box.innerHTML = '<div class="empty" style="padding:24px">같은 구간의 시간이 표시된 녹음이 둘 이상 있어야 템포를 비교할 수 있어요.</div>';
+    return;
+  }
+  legend.innerHTML = recs.map(r => `<span><span class="sw" style="--c:${colorVar(r.slot)}"></span>${esc(recLabelFull(r))}</span>`).join('');
+  const n = p.sections.length, W = Math.max(320, box.clientWidth || 760), H = 280;
+  const direct = recs.length <= 4;
+  const m = { l: 46, r: direct ? 120 : 18, t: 12, b: 34 };
+  const vals = recs.flatMap(r => D.tempo[r.id].filter(isNum));
+  let lo = Math.min(1, ...vals), hi = Math.max(1, ...vals);
+  const pad = (hi - lo) * 0.12 || 0.05; lo -= pad; hi += pad;
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const x = i => n === 1 ? m.l + iw / 2 : m.l + i * iw / (n - 1);
+  const y = v => m.t + (hi - v) / (hi - lo) * ih;
+  const ticks = niceTicks(lo, hi, 5);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="구간별 상대 템포 꺾은선 차트">`;
+  svg += ticks.map(v => `<line x1="${m.l}" x2="${W - m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${m.l - 8}" y="${y(v) + 4}" text-anchor="end">${v.toFixed(2)}×</text>`).join('');
+  svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(1)}" y2="${y(1)}" stroke="var(--axis)" stroke-width="1.5"/>`;
+  const labelEvery = Math.ceil(n / Math.max(1, Math.floor(iw / 34)));
+  svg += p.sections.map((s, i) => {
+    const show = n <= 6 ? (s.name.length > 12 ? s.name.slice(0, 11) + '…' : s.name) : String(i + 1);
+    if (n > 6 && i % labelEvery && i !== n - 1) return '';
+    return `<text x="${x(i)}" y="${H - m.b + 18}" text-anchor="middle" ${s.id === ui.sectionId ? 'style="fill:var(--ink);font-weight:600"' : ''}>${esc(show)}</text>`;
+  }).join('');
+  const ends = [];
+  recs.forEach(r => {
+    const c = colorVar(r.slot), tv = D.tempo[r.id];
+    let d = '', pen = false;
+    tv.forEach((v, i) => { if (isNum(v)) { d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; } else pen = false; });
+    svg += `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    svg += tv.map((v, i) => isNum(v) ? `<circle cx="${x(i)}" cy="${y(v)}" r="4" fill="${c}" stroke="var(--surface)" stroke-width="2"/>` : '').join('');
+    let li = -1; tv.forEach((v, i) => { if (isNum(v)) li = i; });
+    if (li >= 0) ends.push({ r, y: y(tv[li]), x: x(li) });
+  });
+  if (direct) {
+    ends.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+    svg += ends.map(e => { const t = recLabel(e.r); return `<text class="dl" x="${W - m.r + 10}" y="${e.y + 4}">${esc(t.length > 14 ? t.slice(0, 13) + '…' : t)}</text>`; }).join('');
+  }
+  svg += `<line id="xhair" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" stroke="var(--axis)" stroke-width="1" visibility="hidden"/>`;
+  const colW = n === 1 ? iw : iw / (n - 1);
+  svg += p.sections.map((s, i) => `<rect class="hit" data-i="${i}" x="${x(i) - colW / 2}" y="${m.t}" width="${colW}" height="${ih}" fill="transparent" style="cursor:pointer"/>`).join('');
+  svg += '</svg>';
+  box.innerHTML = svg;
+  const xh = box.querySelector('#xhair');
+  box.querySelectorAll('rect.hit').forEach(rc => {
+    const i = +rc.dataset.i, s = p.sections[i];
+    rc.addEventListener('mousemove', ev => {
+      xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('visibility', 'visible');
+      const lines = recs.map(r => ({ r, v: D.tempo[r.id][i], d: D.dur[r.id][i] })).sort((a, b) => (b.v ?? -1) - (a.v ?? -1));
+      showTip(`<div class="tt-h">${i + 1}. ${esc(s.name)}</div>${lines.map(o => `<div class="tt-r"><span><span class="sw" style="--c:${colorVar(o.r.slot)}"></span>${esc(recLabelFull(o.r))}</span><span class="tt-v">${isNum(o.v) ? o.v.toFixed(2) + '× · ' + fmt(o.d) : '—'}</span></div>`).join('')}`, ev.clientX, ev.clientY);
+    });
+    rc.addEventListener('mouseleave', () => { xh.setAttribute('visibility', 'hidden'); hideTip(); });
+    rc.addEventListener('click', () => selectSection(s.id));
+  });
+}
+function renderTable(p, D){
+  const head = `<thead><tr><th>구간</th>${D.recs.map(r => `<th title="${esc(recLabelFull(r))}"><span class="sw" style="--c:${colorVar(r.slot)}"></span>${esc(recLabel(r).length > 16 ? recLabel(r).slice(0, 15) + '…' : recLabel(r))}</th>`).join('')}</tr></thead>`;
+  const body = p.sections.map((s, i) => {
+    const cells = D.recs.map(r => {
+      const d = D.dur[r.id][i], md = D.med[i];
+      if (!isNum(d)) return `<td class="muted" data-sid="${s.id}">—</td>`;
+      let bg = '', dev = '';
+      if (D.cnt[i] >= 2 && md) {
+        const dv = (d - md) / md, k = Math.min(Math.abs(dv) / 0.2, 1) * 45;
+        if (Math.abs(dv) >= 0.005) bg = `background:color-mix(in oklab, ${dv < 0 ? 'var(--fast)' : 'var(--slow)'} ${k.toFixed(0)}%, var(--surface-2))`;
+        else bg = 'background:var(--surface-2)';
+        dev = `<span class="dev">${dv > 0 ? '+' : dv < 0 ? '−' : '±'}${Math.abs(dv * 100).toFixed(0)}%</span>`;
+      } else bg = 'background:var(--surface-2)';
+      return `<td style="${bg}" data-sid="${s.id}" title="${esc(recLabelFull(r))} · ${esc(s.name)}">${fmt(d)}${dev}</td>`;
+    }).join('');
+    return `<tr class="${s.id === ui.sectionId ? 'sel' : ''}"><th title="${esc(s.name)}">${i + 1}. ${esc(s.name)}</th>${cells}</tr>`;
+  }).join('');
+  const totals = D.recs.map(r => { const ds = D.dur[r.id]; return ds.every(isNum) ? fmt(ds.reduce((a, b) => a + b, 0)) : '—'; });
+  $('#dur-table').innerHTML = `<table class="dur-table">${head}<tbody>${body}<tr class="total"><th>합계</th>${totals.map(t => `<td>${t}</td>`).join('')}</tr></tbody></table>`;
+}
+
+/* ---------- notes ---------- */
+function renderNotes(){
+  const p = cur(), box = $('#notes-content');
+  const sel = selectedRecs(p);
+  if (!sel.length) { box.innerHTML = `<div class="empty"><b>메모할 녹음이 없어요</b>${p.recordings.length ? '위에서 비교할 녹음을 골라주세요. 고른 녹음의 메모만 여기에 보여요.' : '녹음을 추가하면 연주자별 총평과 구간별 비교 메모를 여기서 정리할 수 있어요.'}</div>`; return; }
+  box.innerHTML = `<h3 class="sub-h">연주자별 총평</h3><div class="note-grid">${sel.map(r => `
+    <div class="note-card" style="--c:${colorVar(r.slot)}">
+      <div class="nc-head"><span class="sw"></span><b>${esc(recLabel(r))}</b><span class="muted">${esc([recSub(r), r.extra].filter(Boolean).join(' · '))}</span></div>
+      <textarea data-rid="${r.id}" data-kind="overall" rows="4" placeholder="전체적인 인상, 템포, 음색, 해석의 특징">${esc(r.note)}</textarea>
+      <a href="https://www.youtube.com/watch?v=${esc(r.videoId)}" target="_blank" rel="noopener">유튜브에서 열기 ↗</a>
+    </div>`).join('')}</div>
+    <h3 class="sub-h">구간별 비교 메모</h3>
+    ${p.sections.map((s, i) => `<div class="sec-notes"><h4><span class="chip-n">${i + 1}</span>${esc(s.name)}</h4>
+      ${sel.map(r => { const d = sectionDuration(p, r, s.id); return `<div class="sn-row" style="--c:${colorVar(r.slot)}">
+        <div class="sn-name"><span class="sw"></span><span class="n" title="${esc(recLabelFull(r))}">${esc(recLabel(r))}</span><span class="muted">${d != null ? fmt(d) : ''}</span></div>
+        <textarea data-rid="${r.id}" data-sid="${s.id}" data-kind="sec" rows="1" placeholder="이 구간에서 들리는 차이">${esc(r.sectionNotes[s.id] || '')}</textarea></div>`; }).join('')}
+    </div>`).join('')}`;
+}
+
+/* ---------- events ---------- */
+$('#piece-list').addEventListener('click', e => {
+  const b = e.target.closest('.piece-item'); if (!b) return;
+  selectPiece(b.dataset.id);
+});
+function selectPiece(id){
+  if (id === state.currentId) return;
+  stopAll();
+  Object.keys(players).forEach(destroyPlayer);
+  $('#rec-grid').innerHTML = '';
+  state.currentId = id; ui.sectionId = null; ui.activeRecId = null; lastLiveSid = null;
+  save(); renderAll();
+}
+$('#pick-toggle').addEventListener('click', () => { const v = cur().view; v.open = !v.open; save(); renderPick(); });
+let yearTimer;
+$('#pick').addEventListener('input', e => {
+  const el = e.target.closest('[data-f]'); if (!el) return;
+  cur().view.f[el.dataset.f] = el.value;
+  if (el.tagName === 'INPUT') { clearTimeout(yearTimer); yearTimer = setTimeout(afterSelectionChange, 500); }
+  else afterSelectionChange();
+});
+$('#pick-sort').addEventListener('change', e => { cur().view.sort = e.target.value; afterSelectionChange(); });
+$('#pick-reset').addEventListener('click', () => { cur().view.f = emptyFilter(); afterSelectionChange(); });
+$('#pick-list').addEventListener('click', e => {
+  const b = e.target.closest('.pick-item'); if (!b) return;
+  const v = cur().view, id = b.dataset.id;
+  v.excluded = v.excluded.includes(id) ? v.excluded.filter(x => x !== id) : [...v.excluded, id];
+  afterSelectionChange();
+  if (selectedRecs(cur()).length > 8 && !v.excluded.includes(id)) toast('색으로 구분되는 녹음은 8개까지예요. 9번째부터는 회색으로 보여요.');
+});
+$('#pick-all').addEventListener('click', () => { const p = cur(), ids = new Set(visibleRecs(p).map(r => r.id)); p.view.excluded = p.view.excluded.filter(id => !ids.has(id)); afterSelectionChange(); });
+$('#pick-none').addEventListener('click', () => { const p = cur(); p.view.excluded = [...new Set([...p.view.excluded, ...visibleRecs(p).map(r => r.id)])]; afterSelectionChange(); });
+document.querySelector('.tabs').addEventListener('click', e => {
+  const b = e.target.closest('button[data-tab]'); if (!b) return;
+  ui.tab = b.dataset.tab; hideTip(); renderTabs();
+  if (ui.tab === 'chart') renderChart();
+  if (ui.tab === 'notes') renderNotes();
+  if (ui.tab === 'listen') { renderChips(); updateAllCards(); }
+});
+$('#section-chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if (b) selectSection(b.dataset.sid);
+});
+$('#btn-relay').addEventListener('click', startRelay);
+$('#btn-stop').addEventListener('click', stopAll);
+
+const grid = $('#rec-grid');
+grid.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  const rec = findRec(btn.closest('.rec-card')?.dataset.id); if (!rec) return;
+  const act = btn.dataset.act, p = cur();
+  if (act === 'edit') openRecDialog(rec);
+  else if (act === 'play-sec') playSection(rec, ui.sectionId);
+  else if (act === 'switch') switchTo(rec);
+  else if (act === 'pause') { stopRelay(); try { players[rec.id]?.player.pauseVideo(); } catch (err) {} }
+  else if (act === 'mk-now') {
+    const t = currentTimeOf(rec.id);
+    if (t == null) { toast('플레이어를 준비하는 중이에요.'); return; }
+    rec.markers[btn.dataset.sid] = Math.round(t * 10) / 10;
+    toast(`‘${secName(p, btn.dataset.sid)}’ 시작 = ${fmt(t)}`);
+    afterMarkerChange(rec);
+  }
+  else if (act === 'mk-go') { stopRelay(); const t = sectionStart(rec, btn.dataset.sid); if (t != null) seekPlay(rec, t); }
+  else if (act === 'end-now') {
+    const t = currentTimeOf(rec.id);
+    if (t == null) { toast('플레이어를 준비하는 중이에요.'); return; }
+    rec.end = Math.round(t * 10) / 10; toast(`연주 끝 = ${fmt(t)}`); afterMarkerChange(rec);
+  }
+});
+grid.addEventListener('change', e => {
+  const inp = e.target.closest('input[data-act]'); if (!inp) return;
+  const rec = findRec(inp.closest('.rec-card')?.dataset.id); if (!rec) return;
+  const v = parseTime(inp.value);
+  if (Number.isNaN(v)) { toast('시간은 1:23 또는 83처럼 적어주세요.'); updateCard(rec); return; }
+  if (inp.dataset.act === 'mk') { if (v == null) delete rec.markers[inp.dataset.sid]; else rec.markers[inp.dataset.sid] = v; }
+  else if (inp.dataset.act === 'end') rec.end = v;
+  afterMarkerChange(rec);
+});
+grid.addEventListener('input', e => {
+  const ta = e.target.closest('textarea[data-act=secnote]'); if (!ta) return;
+  const rec = findRec(ta.closest('.rec-card')?.dataset.id); if (!rec) return;
+  if (ta.value) rec.sectionNotes[ui.sectionId] = ta.value; else delete rec.sectionNotes[ui.sectionId];
+  save();
+});
+grid.addEventListener('toggle', e => {
+  const d = e.target; if (!d.matches?.('details.markers')) return;
+  const id = d.closest('.rec-card').dataset.id;
+  d.open ? ui.openMarkers.add(id) : ui.openMarkers.delete(id);
+}, true);
+
+$('#timeline').addEventListener('mousemove', e => {
+  const seg = e.target.closest('.tl-seg'); if (!seg) { hideTip(); return; }
+  const p = cur(), rec = findRec(seg.dataset.rid), sid = seg.dataset.sid, i = secIndex(p, sid);
+  const D = chartData(p), d = D.dur[rec.id][i], tv = D.tempo[rec.id][i];
+  showTip(`<div class="tt-h">${esc(recLabelFull(rec))}</div><div>${i + 1}. ${esc(secName(p, sid))}</div><div class="tt-v">${fmt(sectionStart(rec, sid))}부터 ${fmt(d)}${isNum(tv) ? ` · 상대 템포 ${tv.toFixed(2)}×` : ''}</div>`, e.clientX, e.clientY);
+});
+$('#timeline').addEventListener('mouseleave', hideTip);
+$('#timeline').addEventListener('click', e => { const seg = e.target.closest('.tl-seg'); if (seg) selectSection(seg.dataset.sid); });
+$('#dur-table').addEventListener('click', e => { const td = e.target.closest('td[data-sid]'); if (td) selectSection(td.dataset.sid); });
+
+$('#notes-content').addEventListener('input', e => {
+  const ta = e.target.closest('textarea[data-rid]'); if (!ta) return;
+  const rec = findRec(ta.dataset.rid); if (!rec) return;
+  if (ta.dataset.kind === 'overall') rec.note = ta.value;
+  else if (ta.value) rec.sectionNotes[ta.dataset.sid] = ta.value; else delete rec.sectionNotes[ta.dataset.sid];
+  save();
+});
+
+let resizeTimer;
+addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => { if (ui.tab === 'chart') renderChart(); }, 150); });
+
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest?.('input, textarea, select, [contenteditable]')) return;
+  if (document.querySelector('dialog[open]')) return;
+  const p = cur(); if (!p || ui.tab !== 'listen') return;
+  if (/^[1-8]$/.test(e.key)) { const rec = selectedRecs(p)[+e.key - 1]; if (rec) { e.preventDefault(); switchTo(rec); } }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const i = secIndex(p, ui.sectionId) + (e.key === 'ArrowRight' ? 1 : -1);
+    if (i >= 0 && i < p.sections.length) selectSection(p.sections[i].id);
+  }
+  else if (e.key === 'm' || e.key === 'M' || e.key === 'ㅡ') {
+    e.preventDefault();
+    const rec = findRec(ui.activeRecId);
+    if (markNow(rec)) {
+      const i = secIndex(p, ui.sectionId);
+      if (i + 1 < p.sections.length) ui.sectionId = p.sections[i + 1].id;
+      renderChips(); updateAllCards();
+    }
+  }
+  else if (e.key === ' ' && !e.target.closest('button')) { e.preventDefault(); togglePlay(); }
+});
+
+/* ---------- dialogs ---------- */
+document.querySelectorAll('dialog [data-close]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+let editingPiece = null;
+function openPieceDialog(piece){
+  editingPiece = piece;
+  $('#dlg-piece-title').textContent = piece ? '작품 편집' : '새 작품';
+  $('#f-title').value = piece?.title || '';
+  $('#f-composer').value = piece?.composer || '';
+  $('#f-sections').value = piece ? piece.sections.map(s => s.name).join('\n') : '';
+  $('#btn-del-piece').style.visibility = piece ? 'visible' : 'hidden';
+  $('#dlg-piece').showModal();
+  $('#f-title').focus();
+}
+$('#btn-new-piece').addEventListener('click', () => openPieceDialog(null));
+$('#btn-edit-piece').addEventListener('click', () => openPieceDialog(cur()));
+$('#form-piece').addEventListener('submit', e => {
+  e.preventDefault();
+  const title = $('#f-title').value.trim() || '제목 없음';
+  const composer = $('#f-composer').value.trim();
+  let names = $('#f-sections').value.split('\n').map(s => s.trim()).filter(Boolean);
+  if (!names.length) names = ['전체'];
+  if (!editingPiece) {
+    const p = newPiece(title, composer, names);
+    state.pieces.push(p);
+    $('#dlg-piece').close();
+    selectPiece(p.id);
+    return;
+  }
+  const p = editingPiece;
+  p.title = title; p.composer = composer;
+  const old = p.sections, used = new Set();
+  const next = names.map(n => { const m = old.find(s => s.name === n && !used.has(s.id)); if (m) { used.add(m.id); return m; } return null; });
+  p.sections = next.map((s, i) => {
+    if (s) return s;
+    const o = old[i];
+    if (o && !used.has(o.id) && !names.includes(o.name)) { used.add(o.id); return { id: o.id, name: names[i] }; }
+    return { id: uid(), name: names[i] };
+  });
+  const keep = new Set(p.sections.map(s => s.id));
+  p.recordings.forEach(r => {
+    Object.keys(r.markers).forEach(k => { if (!keep.has(k)) delete r.markers[k]; });
+  });
+  save(); $('#dlg-piece').close(); renderAll();
+});
+$('#btn-del-piece').addEventListener('click', () => {
+  const p = editingPiece; if (!p) return;
+  if (!confirm(`‘${p.title}’ 작품과 녹음 ${p.recordings.length}개, 메모를 모두 지울까요?`)) return;
+  stopAll(); Object.keys(players).forEach(destroyPlayer); $('#rec-grid').innerHTML = '';
+  state.pieces = state.pieces.filter(x => x !== p);
+  state.currentId = state.pieces[0]?.id || null; ui.sectionId = null;
+  $('#dlg-piece').close(); save(); renderAll();
+});
+
+let editingRec = null;
+function openRecDialog(rec){
+  editingRec = rec;
+  $('#dlg-rec-title').textContent = rec ? '녹음 편집' : '녹음 추가';
+  $('#f-url').value = rec ? (rec.url || `https://www.youtube.com/watch?v=${rec.videoId}`) : '';
+  for (const k of ['performer', 'conductor', 'ensemble', 'year', 'label', 'live', 'extra']) $('#f-' + k).value = rec?.[k] || '';
+  for (const k of ['conductor', 'performer', 'ensemble', 'label']) {
+    const vals = [...new Set(state.pieces.flatMap(pc => pc.recordings.map(r => r[k])).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ko'));
+    $('#dl-' + k).innerHTML = vals.map(v => `<option value="${esc(v)}">`).join('');
+  }
+  $('#rec-err').textContent = '';
+  $('#btn-del-rec').style.visibility = rec ? 'visible' : 'hidden';
+  $('#dlg-rec').showModal();
+  (rec ? $('#f-conductor') : $('#f-url')).focus();
+}
+$('#btn-add-rec').addEventListener('click', () => openRecDialog(null));
+$('#form-rec').addEventListener('submit', e => {
+  e.preventDefault();
+  const p = cur(), url = $('#f-url').value.trim(), parsed = parseYouTube(url);
+  if (!parsed) {
+    $('#rec-err').textContent = /list=/.test(url) ? '재생목록·앨범 링크가 아니라 곡 하나의 링크(watch?v=…)를 넣어주세요.' : '유튜브 링크를 알아보지 못했어요. 주소를 다시 확인해 주세요.';
+    return;
+  }
+  const fields = {};
+  for (const k of ['performer', 'conductor', 'ensemble', 'year', 'label', 'live', 'extra']) fields[k] = $('#f-' + k).value.trim();
+  if (!editingRec) {
+    const rec = { id: uid(), videoId: parsed.id, url, ...fields, videoTitle: '', markers: {}, end: null, duration: null, note: '', sectionNotes: {}, slot: nextSlot(p) };
+    if (parsed.t != null && p.sections[0]) rec.markers[p.sections[0].id] = parsed.t;
+    p.recordings.push(rec);
+    $('#dlg-rec').close();
+    const hidden = !matchesFilter(p, rec);
+    ensureColors(p); save(); renderAll();
+    if (hidden) toast('추가했어요. 지금 필터에 맞지 않아 목록에서 가려져 있어요.');
+    else if (rec.slot === 8) toast('한 번에 색으로 구분할 수 있는 녹음은 8개까지예요. 9번째부터는 회색이에요.');
+    return;
+  }
+  const rec = editingRec;
+  Object.assign(rec, fields);
+  const changed = rec.videoId !== parsed.id;
+  rec.url = url;
+  if (changed) { rec.videoId = parsed.id; rec.duration = null; rec.videoTitle = ''; resetPlayer(rec); toast('영상이 바뀌었어요. 구간 시작 시간을 다시 확인해 주세요.'); }
+  $('#dlg-rec').close(); save(); renderAll();
+});
+$('#btn-del-rec').addEventListener('click', () => {
+  const rec = editingRec, p = cur(); if (!rec) return;
+  if (!confirm(`‘${recLabel(rec)}’ 녹음과 메모를 지울까요?`)) return;
+  if (ui.relay) stopRelay();
+  p.recordings = p.recordings.filter(r => r !== rec);
+  p.view.excluded = p.view.excluded.filter(id => id !== rec.id);
+  ui.openMarkers.delete(rec.id);
+  $('#dlg-rec').close(); save(); renderAll();
+});
+
+/* ---------- import / export ---------- */
+$('#btn-export').addEventListener('click', () => {
+  const data = { app: 'perf-compare', version: 2, exportedAt: new Date().toISOString(), pieces: state.pieces };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `연주비교-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$('#file-import').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const pieces = Array.isArray(data) ? data : data.pieces;
+    if (!Array.isArray(pieces)) throw new Error('형식');
+    let added = 0, replaced = 0;
+    pieces.forEach(raw => {
+      const p = normalizePiece(raw);
+      const i = state.pieces.findIndex(x => x.id === p.id);
+      if (i >= 0) { state.pieces[i] = p; replaced++; } else { state.pieces.push(p); added++; }
+    });
+    stopAll(); Object.keys(players).forEach(destroyPlayer); $('#rec-grid').innerHTML = '';
+    if (!cur()) state.currentId = state.pieces[0]?.id || null;
+    save(); renderAll();
+    toast(`불러왔어요: 새 작품 ${added}개${replaced ? `, 덮어쓴 작품 ${replaced}개` : ''}`);
+  } catch (err) { toast('이 파일은 불러올 수 없어요. 이 앱에서 내보낸 JSON인지 확인해 주세요.'); }
+});
+
+renderAll();
+})();
+</script>
+</body>
+</html>
