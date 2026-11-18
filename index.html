@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="app-version" content="2026.11.18-2">
+<meta name="app-version" content="2026.11.18-3">
 <title>연주 비교 노트</title>
 <style>
 :root{
@@ -115,6 +115,8 @@ main{padding:20px 24px 60px;min-width:0}
 .tpl-row{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-2);font-weight:400}
 .tpl-row button{padding:2px 9px;font-size:12px}
 .chip.add{border-style:dashed;color:var(--ink-2);padding-left:10px}
+.chip-group{display:inline-flex;align-items:center;flex-wrap:wrap;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:var(--surface-2)}
+.cg-label{font-size:12px;font-weight:600;color:var(--ink-2);margin-right:2px}
 .field-row.three{grid-template-columns:1fr 1fr 1fr}
 .people{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
 .people .field[hidden]{display:none}
@@ -447,7 +449,7 @@ dialog h2{margin:0;font-size:17px}
     <label class="field"><span>구간</span>
       <textarea id="f-sections" rows="7" placeholder="한 줄에 하나씩&#10;1악장 Allegro&#10;2악장 Adagio&#10;3악장 Presto"></textarea>
       <span class="tpl-row">빠른 입력: <button type="button" class="small" data-tpl="2">2악장</button><button type="button" class="small" data-tpl="3">3악장</button><button type="button" class="small" data-tpl="4">4악장</button><button type="button" class="small" data-tpl="5">5악장</button></span>
-      <small>악장, 변주, 주제처럼 비교하고 싶은 단위로 나눠요. 한 줄에 하나씩 적고, 이름만 고치면 표시해 둔 시간은 그대로 남아요.</small>
+      <small>악장, 변주, 주제처럼 비교하고 싶은 단위로 나눠요. 한 줄에 하나씩 적고, 이름만 고치면 표시해 둔 시간은 그대로 남아요. 악장 안을 더 나누려면 <code>1악장 &gt; 전개부</code>처럼 적어요.</small>
     </label>
     <div class="dlg-actions">
       <button type="button" id="btn-del-piece" class="ghost danger">작품 삭제</button>
@@ -477,6 +479,22 @@ dialog h2{margin:0;font-size:17px}
     <div class="dlg-actions">
       <button type="button" id="btn-del-rec" class="ghost danger">녹음 삭제</button>
       <div class="row"><button type="button" data-close>취소</button><button type="submit" class="primary">저장</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="dlg-split">
+  <form id="form-split">
+    <h2 id="split-title">구간 나누기</h2>
+    <p class="ds-p" id="split-desc"></p>
+    <label class="field"><span>나눌 부분 (한 줄에 하나)</span>
+      <textarea id="f-parts" rows="5" placeholder="제시부&#10;전개부&#10;재현부&#10;코다"></textarea>
+      <span class="tpl-row">빠른 입력: <button type="button" class="small" data-ptpl="sonata">제시부·전개부·재현부·코다</button><button type="button" class="small" data-ptpl="aba">A·B·A′</button><button type="button" class="small" data-ptpl="2">2부분</button><button type="button" class="small" data-ptpl="3">3부분</button><button type="button" class="small" data-ptpl="4">4부분</button></span>
+    </label>
+    <div class="err" id="split-err"></div>
+    <div class="dlg-actions">
+      <button type="button" id="btn-unsplit" class="ghost danger">나눈 것 다시 합치기</button>
+      <div class="row"><button type="button" data-close>취소</button><button type="submit" class="primary">나누기</button></div>
     </div>
   </form>
 </dialog>
@@ -1103,7 +1121,11 @@ const findRec = id => cur()?.recordings.find(r => r.id === id) || null;
 
 /* ---------- section math ---------- */
 const secIndex = (p, sid) => p.sections.findIndex(s => s.id === sid);
-const secName = (p, sid) => p.sections.find(s => s.id === sid)?.name || '';
+// A part of a section is stored as "group > part", e.g. "1악장 > 전개부"
+function splitName(n){ n = String(n || ''); const i = n.indexOf('>'); return i < 0 ? { group: '', part: n.trim() } : { group: n.slice(0, i).trim(), part: n.slice(i + 1).trim() }; }
+const joinName = (g, part) => g ? `${g} > ${part}` : part;
+const secLabel = s => { const { group, part } = splitName(s?.name); return group ? `${group} · ${part}` : part; };
+const secName = (p, sid) => secLabel(p.sections.find(s => s.id === sid));
 function sectionStart(rec, sid){ const v = rec.markers?.[sid]; return isNum(v) ? v : null; }
 function recEnd(rec){ return isNum(rec.end) ? rec.end : (isNum(rec.duration) && rec.duration > 0 ? rec.duration : null); }
 function playEnd(p, rec, sid){
@@ -1425,7 +1447,7 @@ function renderTabs(){
 function renderRelayControls(){
   const p = cur(), v = p.view, sids = relaySids(p), picked = new Set(v.relaySecs);
   const allOn = p.sections.length > 1 && picked.size === p.sections.length;
-  $('#relay-secs').innerHTML = p.sections.map((s, i) => `<button class="${picked.has(s.id) ? 'on' : ''}" data-sid="${s.id}" aria-pressed="${picked.has(s.id)}" title="${esc(s.name)}">${i + 1}</button>`).join('')
+  $('#relay-secs').innerHTML = p.sections.map((s, i) => `<button class="${picked.has(s.id) ? 'on' : ''}" data-sid="${s.id}" aria-pressed="${picked.has(s.id)}" title="${esc(secLabel(s))}">${i + 1}</button>`).join('')
     + (p.sections.length > 1 ? `<button class="all" data-all="1">${allOn ? '해제' : '모두'}</button>` : '');
   $('#relay-order').value = v.relayOrder;
   $('#relay-order').hidden = sids.length < 2;
@@ -1441,8 +1463,19 @@ function renderRelayControls(){
 function renderChips(){
   const p = cur();
   renderRelayControls();
-  $('#section-chips').innerHTML = `<button class="chip add" data-act="edit-sections" title="악장·변주처럼 구간을 나누거나 고쳐요">+ 구간 나누기</button>`;
-  $('#section-chips').insertAdjacentHTML('afterbegin', p.sections.map((s, i) => `<button class="chip ${s.id === ui.sectionId ? 'on' : ''} ${s.id === lastLiveSid ? 'live' : ''}" data-sid="${s.id}" title="${esc(s.name)}"><span class="chip-n">${i + 1}</span>${esc(s.name)}</button>`).join(''));
+  const chip = (s, i, text) => `<button class="chip ${s.id === ui.sectionId ? 'on' : ''} ${s.id === lastLiveSid ? 'live' : ''}" data-sid="${s.id}" title="${esc(secLabel(s))}"><span class="chip-n">${i + 1}</span>${esc(text)}</button>`;
+  let html = '';
+  for (let i = 0; i < p.sections.length;) {
+    const g = splitName(p.sections[i].name).group;
+    if (!g) { html += chip(p.sections[i], i, p.sections[i].name); i++; continue; }
+    let j = i, parts = '';
+    while (j < p.sections.length && splitName(p.sections[j].name).group === g) { parts += chip(p.sections[j], j, splitName(p.sections[j].name).part); j++; }
+    html += `<span class="chip-group"><span class="cg-label">${esc(g)}</span>${parts}</span>`;
+    i = j;
+  }
+  html += `<button class="chip add" data-act="split" title="선택한 구간을 제시부·전개부처럼 여러 부분으로 나눠요">✂ 선택 구간 나누기</button>`
+    + `<button class="chip add" data-act="edit-sections" title="구간 이름과 순서를 한꺼번에 고쳐요">구간 편집</button>`;
+  $('#section-chips').innerHTML = html;
 }
 function selectSection(sid){
   ui.sectionId = sid;
@@ -1503,8 +1536,8 @@ function updateCard(rec){
     : `<b>${si + 1}. ${esc(secName(p, sid))}</b> · 시작 ${fmt(st)}${dur != null ? ` · 길이 ${fmt(dur)}` : ''}`;
   const rows = p.sections.map((s, i) => {
     const v = sectionStart(rec, s.id);
-    return `<tr class="${s.id === sid ? 'sel' : ''}"><td class="mk-name" title="${esc(s.name)}">${i + 1}. ${esc(s.name)}</td>
-      <td><input type="text" inputmode="decimal" data-act="mk" data-sid="${s.id}" value="${v != null ? fmt(v) : ''}" placeholder="—" aria-label="${esc(s.name)} 시작 시간"></td>
+    return `<tr class="${s.id === sid ? 'sel' : ''}"><td class="mk-name" title="${esc(secLabel(s))}">${i + 1}. ${esc(secLabel(s))}</td>
+      <td><input type="text" inputmode="decimal" data-act="mk" data-sid="${s.id}" value="${v != null ? fmt(v) : ''}" placeholder="—" aria-label="${esc(secLabel(s))} 시작 시간"></td>
       <td><button data-act="mk-now" data-sid="${s.id}" title="지금 재생 위치로 표시">지금</button></td>
       <td><button data-act="mk-go" data-sid="${s.id}" title="여기서 재생" ${v == null ? 'disabled' : ''}>▶</button></td></tr>`;
   }).join('');
@@ -1517,6 +1550,7 @@ function updateCard(rec){
       <button data-act="play-sec" ${st == null ? 'disabled' : ''}>▶ 구간 처음부터</button>
       <button data-act="switch" title="지금 듣던 녹음과 같은 지점으로 전환 (숫자키 ${selectedRecs(p).indexOf(rec) + 1})" ${st == null ? 'disabled' : ''}>⇄ 같은 지점으로</button>
       <button data-act="pause" title="일시정지">⏸</button>
+      <button data-act="split-here" title="이 녹음의 지금 재생 위치에서 구간을 둘로 나눠요">✂ 여기서 나누기</button>
     </div>
     <div class="sec-info">${info}</div>
     <label class="note-label">이 구간 메모<textarea data-act="secnote" rows="2" placeholder="예: 도입부를 아주 느리게, 반복 생략">${esc(rec.sectionNotes[sid] || '')}</textarea></label>
@@ -1618,7 +1652,7 @@ function renderTempo(p, D){
   svg += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(1)}" y2="${y(1)}" stroke="var(--axis)" stroke-width="1.5"/>`;
   const labelEvery = Math.ceil(n / Math.max(1, Math.floor(iw / 34)));
   svg += p.sections.map((s, i) => {
-    const show = n <= 6 ? (s.name.length > 12 ? s.name.slice(0, 11) + '…' : s.name) : String(i + 1);
+    const lb = secLabel(s), show = n <= 6 ? (lb.length > 12 ? lb.slice(0, 11) + '…' : lb) : String(i + 1);
     if (n > 6 && i % labelEvery && i !== n - 1) return '';
     return `<text x="${x(i)}" y="${H - m.b + 18}" text-anchor="middle" ${s.id === ui.sectionId ? 'style="fill:var(--ink);font-weight:600"' : ''}>${esc(show)}</text>`;
   }).join('');
@@ -1648,7 +1682,7 @@ function renderTempo(p, D){
     rc.addEventListener('mousemove', ev => {
       xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('visibility', 'visible');
       const lines = recs.map(r => ({ r, v: D.tempo[r.id][i], d: D.dur[r.id][i] })).sort((a, b) => (b.v ?? -1) - (a.v ?? -1));
-      showTip(`<div class="tt-h">${i + 1}. ${esc(s.name)}</div>${lines.map(o => `<div class="tt-r"><span><span class="sw" style="--c:${colorVar(o.r.slot)}"></span>${esc(recLabelFull(o.r))}</span><span class="tt-v">${isNum(o.v) ? o.v.toFixed(2) + '× · ' + fmt(o.d) : '—'}</span></div>`).join('')}`, ev.clientX, ev.clientY);
+      showTip(`<div class="tt-h">${i + 1}. ${esc(secLabel(s))}</div>${lines.map(o => `<div class="tt-r"><span><span class="sw" style="--c:${colorVar(o.r.slot)}"></span>${esc(recLabelFull(o.r))}</span><span class="tt-v">${isNum(o.v) ? o.v.toFixed(2) + '× · ' + fmt(o.d) : '—'}</span></div>`).join('')}`, ev.clientX, ev.clientY);
     });
     rc.addEventListener('mouseleave', () => { xh.setAttribute('visibility', 'hidden'); hideTip(); });
     rc.addEventListener('click', () => selectSection(s.id));
@@ -1667,9 +1701,9 @@ function renderTable(p, D){
         else bg = 'background:var(--surface-2)';
         dev = `<span class="dev">${dv > 0 ? '+' : dv < 0 ? '−' : '±'}${Math.abs(dv * 100).toFixed(0)}%</span>`;
       } else bg = 'background:var(--surface-2)';
-      return `<td style="${bg}" data-sid="${s.id}" title="${esc(recLabelFull(r))} · ${esc(s.name)}">${fmt(d)}${dev}</td>`;
+      return `<td style="${bg}" data-sid="${s.id}" title="${esc(recLabelFull(r))} · ${esc(secLabel(s))}">${fmt(d)}${dev}</td>`;
     }).join('');
-    return `<tr class="${s.id === ui.sectionId ? 'sel' : ''}"><th title="${esc(s.name)}">${i + 1}. ${esc(s.name)}</th>${cells}</tr>`;
+    return `<tr class="${s.id === ui.sectionId ? 'sel' : ''}"><th title="${esc(secLabel(s))}">${i + 1}. ${esc(secLabel(s))}</th>${cells}</tr>`;
   }).join('');
   const totals = D.recs.map(r => { const ds = D.dur[r.id]; return ds.every(isNum) ? fmt(ds.reduce((a, b) => a + b, 0)) : '—'; });
   $('#dur-table').innerHTML = `<table class="dur-table">${head}<tbody>${body}<tr class="total"><th>합계</th>${totals.map(t => `<td>${t}</td>`).join('')}</tr></tbody></table>`;
@@ -1687,7 +1721,7 @@ function renderNotes(){
       <a href="https://www.youtube.com/watch?v=${esc(r.videoId)}" target="_blank" rel="noopener">유튜브에서 열기 ↗</a>
     </div>`).join('')}</div>
     <h3 class="sub-h">구간별 비교 메모</h3>
-    ${p.sections.map((s, i) => `<div class="sec-notes"><h4><span class="chip-n">${i + 1}</span>${esc(s.name)}</h4>
+    ${p.sections.map((s, i) => `<div class="sec-notes"><h4><span class="chip-n">${i + 1}</span>${esc(secLabel(s))}</h4>
       ${sel.map(r => { const d = sectionDuration(p, r, s.id); return `<div class="sn-row" style="--c:${colorVar(r.slot)}">
         <div class="sn-name"><span class="sw"></span><span class="n" title="${esc(recLabelFull(r))}">${esc(recLabel(r))}</span><span class="muted">${d != null ? fmt(d) : ''}</span></div>
         <textarea data-rid="${r.id}" data-sid="${s.id}" data-kind="sec" rows="1" placeholder="이 구간에서 들리는 차이">${esc(r.sectionNotes[s.id] || '')}</textarea></div>`; }).join('')}
@@ -1737,6 +1771,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
 });
 $('#section-chips').addEventListener('click', e => {
   if (e.target.closest('[data-act=edit-sections]')) { openPieceDialog(cur(), true); return; }
+  if (e.target.closest('[data-act=split]')) { openSplitDialog(); return; }
   const b = e.target.closest('.chip'); if (b) selectSection(b.dataset.sid);
 });
 $('#btn-relay').addEventListener('click', startRelay);
@@ -1766,6 +1801,7 @@ grid.addEventListener('click', e => {
     toast(`‘${secName(p, btn.dataset.sid)}’ 시작 = ${fmt(t)}`);
     afterMarkerChange(rec);
   }
+  else if (act === 'split-here') splitHere(rec);
   else if (act === 'mk-go') { stopRelay(); const t = sectionStart(rec, btn.dataset.sid); if (t != null) seekPlay(rec, t); }
   else if (act === 'end-now') {
     const t = currentTimeOf(rec.id);
@@ -1881,7 +1917,7 @@ $('#form-piece').addEventListener('submit', e => {
   e.preventDefault();
   const title = $('#f-title').value.trim() || '제목 없음';
   const composer = $('#f-composer').value.trim();
-  let names = $('#f-sections').value.split('\n').map(s => s.trim()).filter(Boolean);
+  let names = $('#f-sections').value.split('\n').map(s => s.trim()).filter(Boolean).map(n => { const { group, part } = splitName(n); return joinName(group, part); });
   if (!names.length) names = ['전체'];
   const kind = $('#f-kind').value, instr = $('#f-instr').value;
   if (!editingPiece) {
@@ -2223,6 +2259,96 @@ $('#ds-key-save').addEventListener('click', () => {
 });
 $('#ds-key').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#ds-key-save').click(); } });
 $('#ds-key-change').addEventListener('click', () => showSetup());
+
+/* ---------- splitting a section into parts ---------- */
+function dropSections(p, ids){
+  if (!ids.length) return;
+  const gone = new Set(ids);
+  p.recordings.forEach(r => { ids.forEach(id => { delete r.markers[id]; delete r.sectionNotes[id]; }); });
+  p.view.relaySecs = p.view.relaySecs.filter(id => !gone.has(id));
+}
+let splitCtx = null;
+function openSplitDialog(){
+  const p = cur(), s = p.sections.find(x => x.id === ui.sectionId); if (!s) return;
+  const { group } = splitName(s.name);
+  if (group) {
+    const parts = p.sections.filter(x => splitName(x.name).group === group);
+    splitCtx = { group, ids: parts.map(x => x.id) };
+    $('#split-title').textContent = `‘${group}’ 나누기`;
+    $('#f-parts').value = parts.map(x => splitName(x.name).part).join('\n');
+    $('#btn-unsplit').style.visibility = 'visible';
+  } else {
+    const whole = s.name === '전체' && p.sections.length === 1;
+    splitCtx = { group: whole ? '' : s.name, ids: [s.id], whole };
+    $('#split-title').textContent = `‘${s.name}’ 나누기`;
+    $('#f-parts').value = '';
+    $('#btn-unsplit').style.visibility = 'hidden';
+  }
+  $('#split-desc').textContent = '나눈 부분은 따로 고르고, 바꿔 듣고, 릴레이로 이어 들을 수 있어요. 첫 부분은 원래 구간의 시작 시간을 그대로 쓰고, 나머지 부분이 시작하는 시간은 녹음마다 표시해 주세요(재생하다가 M 키, 또는 카드의 ‘구간 시작 시간’).';
+  $('#split-err').textContent = '';
+  $('#dlg-split').showModal();
+  $('#f-parts').focus();
+}
+document.querySelector('#dlg-split .tpl-row').addEventListener('click', e => {
+  const b = e.target.closest('[data-ptpl]'); if (!b) return;
+  const t = b.dataset.ptpl;
+  const lines = t === 'sonata' ? ['제시부', '전개부', '재현부', '코다'] : t === 'aba' ? ['A', 'B', 'A′'] : Array.from({ length: +t }, (_, i) => `${i + 1}부분`);
+  $('#f-parts').value = lines.join('\n'); $('#f-parts').focus();
+});
+$('#form-split').addEventListener('submit', e => {
+  e.preventDefault();
+  const p = cur(), ctx = splitCtx; if (!ctx) return;
+  const parts = $('#f-parts').value.split('\n').map(x => x.replace(/>/g, '').trim()).filter(Boolean);
+  if (parts.length < 2) { $('#split-err').textContent = '두 부분 이상 적어주세요. 합치려면 ‘나눈 것 다시 합치기’를 누르세요.'; return; }
+  const old = ctx.ids.map(id => p.sections.find(x => x.id === id)).filter(Boolean);
+  const used = new Set();
+  const byName = parts.map(n => { const m = old.find(o => splitName(o.name).part === n && !used.has(o.id)); if (m) used.add(m.id); return m || null; });
+  const next = parts.map((n, i) => {
+    let sec = byName[i];
+    if (!sec && i === 0 && old[0] && !used.has(old[0].id)) { sec = old[0]; used.add(sec.id); } // the first part keeps the section's start times
+    if (!sec) { const o = old[i]; if (o && !used.has(o.id) && !parts.includes(splitName(o.name).part)) { sec = o; used.add(o.id); } }
+    return { id: sec ? sec.id : uid(), name: joinName(ctx.group, n) };
+  });
+  const at = p.sections.findIndex(x => x.id === ctx.ids[0]);
+  p.sections.splice(at, old.length, ...next);
+  dropSections(p, ctx.ids.filter(id => !next.some(x => x.id === id)));
+  ui.sectionId = next[0].id;
+  $('#dlg-split').close(); save(); renderAll();
+  toast(`‘${ctx.group || '전체'}’을(를) ${next.length}부분으로 나눴어요. 2번째 부분부터 녹음마다 시작 시간을 표시해 주세요.`);
+});
+$('#btn-unsplit').addEventListener('click', () => {
+  const p = cur(), ctx = splitCtx; if (!ctx || !ctx.group) return;
+  if (!confirm(`‘${ctx.group}’의 ${ctx.ids.length}부분을 하나로 합칠까요? 첫 부분을 뺀 나머지 부분의 시작 시간과 메모는 지워져요.`)) return;
+  const at = p.sections.findIndex(x => x.id === ctx.ids[0]);
+  p.sections.splice(at, ctx.ids.length, { id: ctx.ids[0], name: ctx.group });
+  dropSections(p, ctx.ids.slice(1));
+  ui.sectionId = ctx.ids[0];
+  $('#dlg-split').close(); save(); renderAll();
+  toast(`‘${ctx.group}’을(를) 하나로 합쳤어요.`);
+});
+function splitHere(rec){
+  const p = cur(), t = currentTimeOf(rec.id);
+  if (t == null) { toast('플레이어를 준비하는 중이에요.'); return; }
+  const sid = sectionAt(p, rec, t);
+  if (!sid) { toast('이 녹음에 구간 시작 시간이 없어서 어디를 나눌지 모르겠어요. 먼저 구간 시작을 표시해 주세요.'); return; }
+  if (t - sectionStart(rec, sid) < 1) { toast('구간이 막 시작한 지점이에요. 조금 뒤에서 나눠 주세요.'); return; }
+  const i = secIndex(p, sid), s = p.sections[i];
+  let { group } = splitName(s.name);
+  if (!group) {
+    const whole = s.name === '전체' && p.sections.length === 1;
+    group = whole ? '' : s.name;
+    s.name = joinName(group, '1부분');
+  }
+  const ns = { id: uid(), name: joinName(group, '새 부분') };
+  p.sections.splice(i + 1, 0, ns);
+  rec.markers[ns.id] = Math.round(t * 10) / 10;
+  // auto-named parts ("1부분", "2부분" …) are renumbered by position
+  let k = 0;
+  p.sections.forEach(x => { const sp = splitName(x.name); if (sp.group === group && (group || /^\d+부분$|^새 부분$/.test(sp.part))) { k++; if (/^\d+부분$|^새 부분$/.test(sp.part)) x.name = joinName(group, `${k}부분`); } });
+  ui.sectionId = ns.id;
+  save(); renderAll();
+  toast(`${fmt(t)}에서 나눴어요 (${recLabel(rec)} 기준). 다른 녹음은 ‘${secLabel(ns)}’ 시작 시간을 표시해 주세요.`);
+}
 
 function nameGroups(field){
   const p = cur(); if (!p) return [];
