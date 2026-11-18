@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="app-version" content="2026.11.18-3">
+<meta name="app-version" content="2026.11.18-4">
 <title>연주 비교 노트</title>
 <style>
 :root{
@@ -220,6 +220,19 @@ details.markers summary{cursor:pointer;font-size:12.5px;color:var(--ink-2);user-
 .mk-name{max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:6px!important}
 .mk-table input{width:74px;padding:2px 6px;font-variant-numeric:tabular-nums;font-size:12.5px}
 .mk-table button{padding:2px 7px;font-size:12px}
+.mk-list{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.mk-row{padding:5px 6px;border-radius:8px}
+.mk-row.sel{background:var(--accent-soft)}
+.mk-head{display:flex;align-items:center;gap:6px;font-size:12.5px}
+.mk-head .mk-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:none;padding:0}
+.mk-dur{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.mk-head button{padding:1px 7px;font-size:11.5px}
+.mk-times{display:flex;gap:10px;flex-wrap:wrap;margin-top:3px}
+.mk-t{display:inline-flex;align-items:center;gap:4px;font-size:12px}
+.mk-l{color:var(--ink-2);width:24px}
+.mk-t input{width:66px;padding:2px 6px;font-variant-numeric:tabular-nums;font-size:12.5px}
+.mk-t input::placeholder{color:var(--muted);opacity:.7}
+.mk-t button{padding:2px 7px;font-size:12px}
 .mk-hint{font-size:11.5px;color:var(--muted);margin-top:4px}
 
 /* charts */
@@ -336,6 +349,7 @@ dialog h2{margin:0;font-size:17px}
         <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>이전/다음 구간 선택</dd>
         <dt>릴레이</dt><dd>‘릴레이 구간’ 번호를 여러 개 누르면 고른 구간을 이어서 들어요</dd>
         <dt><kbd>M</kbd></dt><dd>재생 중인 녹음의 선택 구간 시작을 지금으로 표시하고 다음 구간으로</dd>
+        <dt><kbd>E</kbd></dt><dd>재생 중인 녹음의 선택 구간 끝을 지금으로 표시</dd>
         <dt><kbd>Space</kbd></dt><dd>재생/일시정지</dd>
       </dl>
     </div>
@@ -1036,10 +1050,13 @@ function normalizePiece(p){
     year: r.year || '', label: r.label || '', live: r.live === 'live' || r.live === 'studio' ? r.live : '', extra: r.extra || r.detail || '',
     videoTitle: r.videoTitle || '', markers: r.markers && typeof r.markers === 'object' ? r.markers : {},
     end: isNum(r.end) ? r.end : null, duration: isNum(r.duration) ? r.duration : null,
+    ends: r.ends && typeof r.ends === 'object' ? r.ends : {},
     note: r.note || '', sectionNotes: r.sectionNotes && typeof r.sectionNotes === 'object' ? r.sectionNotes : {},
     slot: isNum(r.slot) ? r.slot : null
   }));
   p.recordings.forEach(r => { if (r.slot == null) r.slot = nextSlot(p, r); });
+  const lastSec = p.sections[p.sections.length - 1];
+  p.recordings.forEach(r => { if (isNum(r.end)) { if (lastSec && !isNum(r.ends[lastSec.id])) r.ends[lastSec.id] = r.end; r.end = null; } });
   const v = p.view || {};
   p.view = { f: Object.assign(emptyFilter(), v.f || {}), excluded: Array.isArray(v.excluded) ? v.excluded : [], sort: v.sort || 'added', open: v.open !== false,
     relaySecs: Array.isArray(v.relaySecs) ? v.relaySecs : [], relayOrder: v.relayOrder === 'rec' ? 'rec' : 'section' };
@@ -1128,25 +1145,35 @@ const secLabel = s => { const { group, part } = splitName(s?.name); return group
 const secName = (p, sid) => secLabel(p.sections.find(s => s.id === sid));
 function sectionStart(rec, sid){ const v = rec.markers?.[sid]; return isNum(v) ? v : null; }
 function recEnd(rec){ return isNum(rec.end) ? rec.end : (isNum(rec.duration) && rec.duration > 0 ? rec.duration : null); }
-function playEnd(p, rec, sid){
+// An explicit end (rec.ends[sid]) wins; otherwise a section ends where the next marked one starts, or at the end of the video.
+function sectionEndMark(rec, sid){ const v = rec.ends?.[sid]; return isNum(v) ? v : null; }
+function implicitEnd(p, rec, sid){
   const i = secIndex(p, sid);
   for (let j = i + 1; j < p.sections.length; j++) { const t = sectionStart(rec, p.sections[j].id); if (t != null) return t; }
   return recEnd(rec);
 }
+function playEnd(p, rec, sid){ return sectionEndMark(rec, sid) ?? implicitEnd(p, rec, sid); }
 function sectionDuration(p, rec, sid){
   const i = secIndex(p, sid), a = sectionStart(rec, sid);
   if (a == null) return null;
-  const b = i + 1 < p.sections.length ? sectionStart(rec, p.sections[i + 1].id) : recEnd(rec);
+  const e = sectionEndMark(rec, sid);
+  const b = e != null ? e : (i + 1 < p.sections.length ? sectionStart(rec, p.sections[i + 1].id) : recEnd(rec));
   return b != null && b > a ? b - a : null;
 }
 function sectionAt(p, rec, t){
   let found = null, best = -Infinity;
-  for (const s of p.sections) { const st = sectionStart(rec, s.id); if (st != null && st <= t + 0.05 && st >= best) { best = st; found = s.id; } }
+  for (const s of p.sections) {
+    const st = sectionStart(rec, s.id);
+    if (st == null || st > t + 0.05 || st < best) continue;
+    const en = sectionEndMark(rec, s.id);
+    if (en != null && t >= en) continue; // past this part's own end: we are in a gap
+    best = st; found = s.id;
+  }
   return found;
 }
 
 /* ---------- UI state ---------- */
-const ui = { tab: 'listen', sectionId: null, activeRecId: null, relay: null, openMarkers: new Set() };
+const ui = { stopAt: null, tab: 'listen', sectionId: null, activeRecId: null, relay: null, openMarkers: new Set() };
 const players = {};
 let ytReady = false;
 
@@ -1197,6 +1224,7 @@ function onPlayerReady(id){
 function onPlayerState(id, st){
   if (st === 1) { // playing
     pauseOthers(id);
+    if (ui.stopAt && ui.stopAt.rid !== id) ui.stopAt = null;
     if (ui.relay && !ui.relay.pending && ui.relay.queue[ui.relay.i]?.rid !== id) stopRelay();
     ui.activeRecId = id;
     const rec = findRec(id), e = players[id];
@@ -1244,11 +1272,12 @@ function currentTimeOf(id){ const e = players[id]; try { return e && e.ready ? e
 function isPlaying(id){ const e = players[id]; try { return !!(e && e.ready && e.player.getPlayerState() === 1); } catch (err) { return false; } }
 
 /* ---------- playback actions ---------- */
+function armStop(rec, sid){ const en = sectionEndMark(rec, sid); ui.stopAt = en != null ? { rid: rec.id, t: en } : null; }
 function playSection(rec, sid){
   stopRelay();
   const p = cur(), st = sectionStart(rec, sid);
   if (st == null) { toast(`${recLabel(rec)}: ‘${secName(p, sid)}’ 시작 시간을 먼저 표시해 주세요.`); return; }
-  seekPlay(rec, st);
+  if (seekPlay(rec, st)) armStop(rec, sid);
 }
 function switchTo(target){
   const p = cur();
@@ -1266,7 +1295,7 @@ function switchTo(target){
     tt = a2 + f * (b2 - a2); pct = Math.round(f * 100);
   } else if (a != null) tt = a2 + Math.max(0, t - a);
   if (sid !== ui.sectionId) selectSection(sid);
-  if (seekPlay(target, tt)) toast(`⇄ ${recLabel(target)} · ${secName(p, sid)}${pct != null ? ` ${pct}% 지점` : ''}`);
+  if (seekPlay(target, tt)) { armStop(target, sid); toast(`⇄ ${recLabel(target)} · ${secName(p, sid)}${pct != null ? ` ${pct}% 지점` : ''}`); }
 }
 function togglePlay(){
   const id = ui.activeRecId; const e = players[id];
@@ -1274,7 +1303,7 @@ function togglePlay(){
   if (isPlaying(id)) e.player.pauseVideo(); else e.player.playVideo();
 }
 function stopAll(){
-  stopRelay();
+  stopRelay(); ui.stopAt = null;
   for (const e of Object.values(players)) { try { if (e.ready) e.player.pauseVideo(); } catch (err) {} }
 }
 function markNow(rec){
@@ -1309,7 +1338,7 @@ function startRelay(){
   const playable = queue.filter(q => players[q.rid]?.ready && !players[q.rid].error);
   if (!playable.length) { toast(queue.length ? '플레이어를 준비하는 중이에요. 잠시 후 다시 눌러주세요.' : '고른 구간의 시작 시간이 표시된 녹음이 없어요.'); return; }
   const limit = Math.max(0, parseFloat($('#relay-limit').value) || 0);
-  ui.relay = { queue: playable, i: 0, limit, until: null, pending: false };
+  ui.relay = { queue: playable, i: 0, limit, until: null, pending: false }; ui.stopAt = null;
   if (playable.length < total) toast(`시작 시간이 없거나 재생할 수 없는 ${total - playable.length}곳은 건너뛰어요.`);
   relayPlayCurrent();
 }
@@ -1365,6 +1394,11 @@ setInterval(() => {
   if (liveSid !== lastLiveSid) {
     lastLiveSid = liveSid;
     document.querySelectorAll('#section-chips .chip').forEach(c => c.classList.toggle('live', c.dataset.sid === liveSid));
+  }
+  // a part with its own end stops there
+  if (ui.stopAt && !ui.relay) {
+    const S = ui.stopAt, t = currentTimeOf(S.rid);
+    if (t != null && isPlaying(S.rid) && t >= S.t - 0.1) { ui.stopAt = null; try { players[S.rid].player.pauseVideo(); } catch (err) {} }
   }
   // relay
   const R = ui.relay;
@@ -1531,19 +1565,21 @@ function updateCard(rec){
   const sid = ui.sectionId, si = secIndex(p, sid);
   const st = sectionStart(rec, sid), dur = sectionDuration(p, rec, sid);
   const marked = p.sections.filter(s => sectionStart(rec, s.id) != null).length;
+  const pe = st != null ? playEnd(p, rec, sid) : null, own = sectionEndMark(rec, sid) != null;
   const info = st == null
     ? `<b>${si + 1}. ${esc(secName(p, sid))}</b> · 시작 시간 미표시 — 재생하다가 <span class="kbd">M</span> 또는 아래 ‘지금’`
-    : `<b>${si + 1}. ${esc(secName(p, sid))}</b> · 시작 ${fmt(st)}${dur != null ? ` · 길이 ${fmt(dur)}` : ''}`;
+    : `<b>${si + 1}. ${esc(secName(p, sid))}</b> · ${fmt(st)} ~ ${pe != null ? fmt(pe) : '?'}${own ? ' (끝 지정)' : ''}${dur != null ? ` · 길이 ${fmt(dur)}` : ''}`;
   const rows = p.sections.map((s, i) => {
-    const v = sectionStart(rec, s.id);
-    return `<tr class="${s.id === sid ? 'sel' : ''}"><td class="mk-name" title="${esc(secLabel(s))}">${i + 1}. ${esc(secLabel(s))}</td>
-      <td><input type="text" inputmode="decimal" data-act="mk" data-sid="${s.id}" value="${v != null ? fmt(v) : ''}" placeholder="—" aria-label="${esc(secLabel(s))} 시작 시간"></td>
-      <td><button data-act="mk-now" data-sid="${s.id}" title="지금 재생 위치로 표시">지금</button></td>
-      <td><button data-act="mk-go" data-sid="${s.id}" title="여기서 재생" ${v == null ? 'disabled' : ''}>▶</button></td></tr>`;
+    const v = sectionStart(rec, s.id), en = sectionEndMark(rec, s.id), imp = implicitEnd(p, rec, s.id), d = sectionDuration(p, rec, s.id);
+    const lb = esc(secLabel(s));
+    return `<div class="mk-row ${s.id === sid ? 'sel' : ''}">
+      <div class="mk-head"><span class="mk-name" title="${lb}">${i + 1}. ${lb}</span><span class="mk-dur">${d != null ? fmt(d) : ''}</span>
+        <button data-act="mk-go" data-sid="${s.id}" title="이 부분 재생" ${v == null ? 'disabled' : ''}>▶</button></div>
+      <div class="mk-times">
+        <span class="mk-t"><span class="mk-l">시작</span><input type="text" inputmode="decimal" data-act="mk" data-sid="${s.id}" value="${v != null ? fmt(v) : ''}" placeholder="—" aria-label="${lb} 시작 시간"><button data-act="mk-now" data-sid="${s.id}" title="지금 재생 위치를 시작으로">지금</button></span>
+        <span class="mk-t"><span class="mk-l">끝</span><input type="text" inputmode="decimal" data-act="mk-end" data-sid="${s.id}" value="${en != null ? fmt(en) : ''}" placeholder="${imp != null ? fmt(imp) : '자동'}" title="비워두면 ${imp != null ? fmt(imp) + '(다음 부분 시작 또는 영상 끝)' : '다음 부분 시작 또는 영상 끝'}에서 끝나요" aria-label="${lb} 끝 시간"><button data-act="mk-end-now" data-sid="${s.id}" title="지금 재생 위치를 끝으로">지금</button></span>
+      </div></div>`;
   }).join('');
-  const endRow = `<tr><td class="mk-name" title="마지막 구간이 끝나는 시점 (박수 전). 비워두면 영상 끝.">끝 (박수 전)</td>
-      <td><input type="text" inputmode="decimal" data-act="end" value="${isNum(rec.end) ? fmt(rec.end) : ''}" placeholder="${isNum(rec.duration) ? fmt(rec.duration) : '영상 끝'}" aria-label="연주 끝 시간"></td>
-      <td><button data-act="end-now" title="지금 재생 위치로 표시">지금</button></td><td></td></tr>`;
   el.querySelector('.card-body').innerHTML = `
     <div class="now-row"><span class="now-time" data-role="time">${fmt(currentTimeOf(rec.id) ?? 0)}${isNum(rec.duration) ? ' / ' + fmt(rec.duration) : ''}</span><span class="now-sec" data-role="nowsec"></span></div>
     <div class="btn-row">
@@ -1554,15 +1590,23 @@ function updateCard(rec){
     </div>
     <div class="sec-info">${info}</div>
     <label class="note-label">이 구간 메모<textarea data-act="secnote" rows="2" placeholder="예: 도입부를 아주 느리게, 반복 생략">${esc(rec.sectionNotes[sid] || '')}</textarea></label>
-    <details class="markers" ${ui.openMarkers.has(rec.id) ? 'open' : ''}><summary>구간 시작 시간 · ${marked}/${p.sections.length} 표시됨</summary>
-      <table class="mk-table"><tbody>${rows}${endRow}</tbody></table>
-      <div class="mk-hint">m:ss 형식으로 고칠 수 있어요. 마지막 구간 길이는 ‘끝’ 시간(없으면 영상 길이)으로 계산해요.</div>
+    <details class="markers" ${ui.openMarkers.has(rec.id) ? 'open' : ''}><summary>구간 시작·끝 시간 · ${marked}/${p.sections.length} 표시됨</summary>
+      <div class="mk-list">${rows}</div>
+      <div class="mk-hint">m:ss 형식으로 고칠 수 있어요. 끝을 비워두면 흐린 글씨 시간(다음 부분 시작, 마지막은 영상 끝)에서 끝나요. 끝을 정한 부분은 재생하면 그 끝에서 멈춰요.</div>
     </details>`;
 }
 function markPlaying(){
   const p = cur(); if (!p) return;
   selectedRecs(p).forEach(r => cardEl(r.id)?.classList.toggle('playing', r.id === ui.activeRecId && isPlaying(r.id)));
   setTimeout(() => cur() === p && selectedRecs(p).forEach(r => cardEl(r.id)?.classList.toggle('playing', r.id === ui.activeRecId && isPlaying(r.id))), 400);
+}
+function setEnd(rec, sid, v){
+  const p = cur(), st = sectionStart(rec, sid);
+  if (v != null && st != null && v <= st) { toast(`끝은 시작(${fmt(st)})보다 뒤여야 해요.`); updateCard(rec); return; }
+  if (v == null) delete rec.ends[sid]; else rec.ends[sid] = v;
+  if (v != null) toast(`‘${secName(p, sid)}’ 끝 = ${fmt(v)}`);
+  if (ui.stopAt?.rid === rec.id && ui.sectionId === sid) armStop(rec, sid);
+  afterMarkerChange(rec);
 }
 function afterMarkerChange(rec){
   save(); updateCard(rec); renderRelayControls();
@@ -1802,11 +1846,11 @@ grid.addEventListener('click', e => {
     afterMarkerChange(rec);
   }
   else if (act === 'split-here') splitHere(rec);
-  else if (act === 'mk-go') { stopRelay(); const t = sectionStart(rec, btn.dataset.sid); if (t != null) seekPlay(rec, t); }
-  else if (act === 'end-now') {
+  else if (act === 'mk-go') { stopRelay(); const t = sectionStart(rec, btn.dataset.sid); if (t != null && seekPlay(rec, t)) armStop(rec, btn.dataset.sid); }
+  else if (act === 'mk-end-now') {
     const t = currentTimeOf(rec.id);
     if (t == null) { toast('플레이어를 준비하는 중이에요.'); return; }
-    rec.end = Math.round(t * 10) / 10; toast(`연주 끝 = ${fmt(t)}`); afterMarkerChange(rec);
+    setEnd(rec, btn.dataset.sid, Math.round(t * 10) / 10);
   }
 });
 grid.addEventListener('change', e => {
@@ -1814,8 +1858,12 @@ grid.addEventListener('change', e => {
   const rec = findRec(inp.closest('.rec-card')?.dataset.id); if (!rec) return;
   const v = parseTime(inp.value);
   if (Number.isNaN(v)) { toast('시간은 1:23 또는 83처럼 적어주세요.'); updateCard(rec); return; }
-  if (inp.dataset.act === 'mk') { if (v == null) delete rec.markers[inp.dataset.sid]; else rec.markers[inp.dataset.sid] = v; }
-  else if (inp.dataset.act === 'end') rec.end = v;
+  const sid = inp.dataset.sid;
+  if (inp.dataset.act === 'mk') {
+    const en = sectionEndMark(rec, sid);
+    if (v != null && en != null && v >= en) { toast(`시작은 끝(${fmt(en)})보다 앞이어야 해요.`); updateCard(rec); return; }
+    if (v == null) delete rec.markers[sid]; else rec.markers[sid] = v;
+  } else if (inp.dataset.act === 'mk-end') { setEnd(rec, sid, v); return; }
   afterMarkerChange(rec);
 });
 grid.addEventListener('input', e => {
@@ -1861,6 +1909,13 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     const i = secIndex(p, ui.sectionId) + (e.key === 'ArrowRight' ? 1 : -1);
     if (i >= 0 && i < p.sections.length) selectSection(p.sections[i].id);
+  }
+  else if (e.key === 'e' || e.key === 'E' || e.key === 'ㄷ') {
+    e.preventDefault();
+    const rec = findRec(ui.activeRecId);
+    if (!rec) { toast('먼저 녹음 하나를 재생해 주세요.'); return; }
+    const t = currentTimeOf(rec.id); if (t == null) return;
+    setEnd(rec, ui.sectionId, Math.round(t * 10) / 10);
   }
   else if (e.key === 'm' || e.key === 'M' || e.key === 'ㅡ') {
     e.preventDefault();
@@ -2264,7 +2319,7 @@ $('#ds-key-change').addEventListener('click', () => showSetup());
 function dropSections(p, ids){
   if (!ids.length) return;
   const gone = new Set(ids);
-  p.recordings.forEach(r => { ids.forEach(id => { delete r.markers[id]; delete r.sectionNotes[id]; }); });
+  p.recordings.forEach(r => { ids.forEach(id => { delete r.markers[id]; delete r.sectionNotes[id]; delete r.ends[id]; }); });
   p.view.relaySecs = p.view.relaySecs.filter(id => !gone.has(id));
 }
 let splitCtx = null;
@@ -2310,6 +2365,8 @@ $('#form-split').addEventListener('submit', e => {
     return { id: sec ? sec.id : uid(), name: joinName(ctx.group, n) };
   });
   const at = p.sections.findIndex(x => x.id === ctx.ids[0]);
+  if (old.length === 1 && next.length > 1) // a fresh split: the section's own end now belongs to its last part
+    p.recordings.forEach(r => { if (isNum(r.ends[old[0].id]) && next[0].id === old[0].id) { r.ends[next[next.length - 1].id] = r.ends[old[0].id]; delete r.ends[old[0].id]; } });
   p.sections.splice(at, old.length, ...next);
   dropSections(p, ctx.ids.filter(id => !next.some(x => x.id === id)));
   ui.sectionId = next[0].id;
@@ -2320,6 +2377,8 @@ $('#btn-unsplit').addEventListener('click', () => {
   const p = cur(), ctx = splitCtx; if (!ctx || !ctx.group) return;
   if (!confirm(`‘${ctx.group}’의 ${ctx.ids.length}부분을 하나로 합칠까요? 첫 부분을 뺀 나머지 부분의 시작 시간과 메모는 지워져요.`)) return;
   const at = p.sections.findIndex(x => x.id === ctx.ids[0]);
+  const lastId = ctx.ids[ctx.ids.length - 1];
+  p.recordings.forEach(r => { if (isNum(r.ends[lastId])) r.ends[ctx.ids[0]] = r.ends[lastId]; else delete r.ends[ctx.ids[0]]; });
   p.sections.splice(at, ctx.ids.length, { id: ctx.ids[0], name: ctx.group });
   dropSections(p, ctx.ids.slice(1));
   ui.sectionId = ctx.ids[0];
@@ -2342,6 +2401,7 @@ function splitHere(rec){
   const ns = { id: uid(), name: joinName(group, '새 부분') };
   p.sections.splice(i + 1, 0, ns);
   rec.markers[ns.id] = Math.round(t * 10) / 10;
+  p.recordings.forEach(r => { if (isNum(r.ends[s.id])) { r.ends[ns.id] = r.ends[s.id]; delete r.ends[s.id]; } });
   // auto-named parts ("1부분", "2부분" …) are renumbered by position
   let k = 0;
   p.sections.forEach(x => { const sp = splitName(x.name); if (sp.group === group && (group || /^\d+부분$|^새 부분$/.test(sp.part))) { k++; if (/^\d+부분$|^새 부분$/.test(sp.part)) x.name = joinName(group, `${k}부분`); } });
