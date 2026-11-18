@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="app-version" content="2026.11.18-4">
+<meta name="app-version" content="2026.11.18-5">
 <title>연주 비교 노트</title>
 <style>
 :root{
@@ -1602,6 +1602,7 @@ function markPlaying(){
 }
 function setEnd(rec, sid, v){
   const p = cur(), st = sectionStart(rec, sid);
+  rec.ends = rec.ends || {};
   if (v != null && st != null && v <= st) { toast(`끝은 시작(${fmt(st)})보다 뒤여야 해요.`); updateCard(rec); return; }
   if (v == null) delete rec.ends[sid]; else rec.ends[sid] = v;
   if (v != null) toast(`‘${secName(p, sid)}’ 끝 = ${fmt(v)}`);
@@ -2038,7 +2039,7 @@ $('#form-rec').addEventListener('submit', e => {
   const fields = {};
   for (const k of ['performer', 'conductor', 'ensemble', 'year', 'label', 'live', 'extra']) fields[k] = $('#f-' + k).value.trim();
   if (!editingRec) {
-    const rec = { id: uid(), videoId: parsed.id, url, ...fields, videoTitle: '', markers: {}, end: null, duration: null, note: '', sectionNotes: {}, slot: nextSlot(p) };
+    const rec = { id: uid(), videoId: parsed.id, url, ...fields, videoTitle: '', markers: {}, ends: {}, end: null, duration: null, note: '', sectionNotes: {}, slot: nextSlot(p) };
     if (parsed.t != null && p.sections[0]) rec.markers[p.sections[0].id] = parsed.t;
     p.recordings.push(rec);
     $('#dlg-rec').close();
@@ -2279,7 +2280,7 @@ function addFromResult(i){
   const it = ds.items[i], p = cur(); if (!it || p.recordings.some(r => r.videoId === it.id)) return;
   const m = it.meta || {};
   const rec = { id: uid(), videoId: it.id, url: `https://www.youtube.com/watch?v=${it.id}`, performer: m.performer || '', conductor: m.conductor || '', ensemble: m.ensemble || '',
-    year: m.year || '', label: m.label || '', live: m.live || '', extra: '', videoTitle: it.title, markers: {}, end: null, duration: it.dur ?? null,
+    year: m.year || '', label: m.label || '', live: m.live || '', extra: '', videoTitle: it.title, markers: {}, ends: {}, end: null, duration: it.dur ?? null,
     note: '', sectionNotes: {}, slot: nextSlot(p) };
   p.recordings.push(rec);
   ensureColors(p); save(); renderAll(); renderResults();
@@ -2319,7 +2320,7 @@ $('#ds-key-change').addEventListener('click', () => showSetup());
 function dropSections(p, ids){
   if (!ids.length) return;
   const gone = new Set(ids);
-  p.recordings.forEach(r => { ids.forEach(id => { delete r.markers[id]; delete r.sectionNotes[id]; delete r.ends[id]; }); });
+  p.recordings.forEach(r => { r.ends = r.ends || {}; ids.forEach(id => { delete r.markers[id]; delete r.sectionNotes[id]; delete r.ends[id]; }); });
   p.view.relaySecs = p.view.relaySecs.filter(id => !gone.has(id));
 }
 let splitCtx = null;
@@ -2366,7 +2367,7 @@ $('#form-split').addEventListener('submit', e => {
   });
   const at = p.sections.findIndex(x => x.id === ctx.ids[0]);
   if (old.length === 1 && next.length > 1) // a fresh split: the section's own end now belongs to its last part
-    p.recordings.forEach(r => { if (isNum(r.ends[old[0].id]) && next[0].id === old[0].id) { r.ends[next[next.length - 1].id] = r.ends[old[0].id]; delete r.ends[old[0].id]; } });
+    p.recordings.forEach(r => { r.ends = r.ends || {}; if (isNum(r.ends[old[0].id]) && next[0].id === old[0].id) { r.ends[next[next.length - 1].id] = r.ends[old[0].id]; delete r.ends[old[0].id]; } });
   p.sections.splice(at, old.length, ...next);
   dropSections(p, ctx.ids.filter(id => !next.some(x => x.id === id)));
   ui.sectionId = next[0].id;
@@ -2378,7 +2379,7 @@ $('#btn-unsplit').addEventListener('click', () => {
   if (!confirm(`‘${ctx.group}’의 ${ctx.ids.length}부분을 하나로 합칠까요? 첫 부분을 뺀 나머지 부분의 시작 시간과 메모는 지워져요.`)) return;
   const at = p.sections.findIndex(x => x.id === ctx.ids[0]);
   const lastId = ctx.ids[ctx.ids.length - 1];
-  p.recordings.forEach(r => { if (isNum(r.ends[lastId])) r.ends[ctx.ids[0]] = r.ends[lastId]; else delete r.ends[ctx.ids[0]]; });
+  p.recordings.forEach(r => { r.ends = r.ends || {}; if (isNum(r.ends[lastId])) r.ends[ctx.ids[0]] = r.ends[lastId]; else delete r.ends[ctx.ids[0]]; });
   p.sections.splice(at, ctx.ids.length, { id: ctx.ids[0], name: ctx.group });
   dropSections(p, ctx.ids.slice(1));
   ui.sectionId = ctx.ids[0];
@@ -2401,7 +2402,7 @@ function splitHere(rec){
   const ns = { id: uid(), name: joinName(group, '새 부분') };
   p.sections.splice(i + 1, 0, ns);
   rec.markers[ns.id] = Math.round(t * 10) / 10;
-  p.recordings.forEach(r => { if (isNum(r.ends[s.id])) { r.ends[ns.id] = r.ends[s.id]; delete r.ends[s.id]; } });
+  p.recordings.forEach(r => { r.ends = r.ends || {}; if (isNum(r.ends[s.id])) { r.ends[ns.id] = r.ends[s.id]; delete r.ends[s.id]; } });
   // auto-named parts ("1부분", "2부분" …) are renumbered by position
   let k = 0;
   p.sections.forEach(x => { const sp = splitName(x.name); if (sp.group === group && (group || /^\d+부분$|^새 부분$/.test(sp.part))) { k++; if (/^\d+부분$|^새 부분$/.test(sp.part)) x.name = joinName(group, `${k}부분`); } });
