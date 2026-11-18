@@ -174,6 +174,13 @@ dialog select{background:var(--surface);border:1px solid var(--border-strong);bo
 .relay-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:13px}
 .relay-row input{width:64px;padding:3px 6px}
 #relay-status{font-weight:500}
+.relay-lbl{color:var(--ink-2);margin-left:4px}
+.relay-secs{display:inline-flex;flex-wrap:wrap;gap:3px}
+.relay-secs button{min-width:28px;padding:3px 7px;font-size:12.5px;border-radius:6px;font-variant-numeric:tabular-nums}
+.relay-secs button.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.relay-secs button.all{min-width:0}
+.relay-row select{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:4px 6px;font-size:13px}
+.relay-hint{font-size:12.5px;color:var(--ink-2);margin-top:6px}
 .rec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
 .rec-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;border-top:3px solid var(--c)}
 .rec-card.playing{box-shadow:0 0 0 2px var(--c)}
@@ -321,6 +328,7 @@ dialog h2{margin:0;font-size:17px}
       <dl>
         <dt><kbd>1</kbd>–<kbd>8</kbd></dt><dd>그 녹음의 같은 지점으로 전환</dd>
         <dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>이전/다음 구간 선택</dd>
+        <dt>릴레이</dt><dd>‘릴레이 구간’ 번호를 여러 개 누르면 고른 구간을 이어서 들어요</dd>
         <dt><kbd>M</kbd></dt><dd>재생 중인 녹음의 선택 구간 시작을 지금으로 표시하고 다음 구간으로</dd>
         <dt><kbd>Space</kbd></dt><dd>재생/일시정지</dd>
       </dl>
@@ -374,11 +382,14 @@ dialog h2{margin:0;font-size:17px}
         <div class="section-bar">
           <div id="section-chips" class="chips"></div>
           <div class="relay-row">
-            <button id="btn-relay" class="primary">▶ 선택 구간 릴레이 듣기</button>
+            <button id="btn-relay" class="primary">▶ 릴레이 듣기</button>
+            <span class="relay-lbl">릴레이 구간</span><span id="relay-secs" class="relay-secs" role="group" aria-label="릴레이할 구간"></span>
+            <select id="relay-order" title="여러 구간을 고르면 어떤 순서로 들을지"><option value="section">구간마다 모든 연주</option><option value="rec">연주마다 고른 구간</option></select>
             <label>연주당 <input id="relay-limit" type="number" min="0" step="5" value="0"> 초까지 <span class="muted">(0 = 구간 전체)</span></label>
             <button id="btn-stop">■ 정지</button>
             <span id="relay-status"></span>
           </div>
+          <div id="relay-hint" class="relay-hint"></div>
         </div>
         <div id="rec-grid" class="rec-grid"></div>
         <div id="listen-empty" class="empty" hidden><b>아직 녹음이 없어요</b>‘+ 녹음 추가’를 눌러 유튜브나 유튜브 뮤직 링크를 붙여넣으세요.</div>
@@ -985,7 +996,7 @@ function makeCombo(input, getGroups){
 const emptyFilter = () => ({ conductor: '', performer: '', ensemble: '', live: '', yFrom: '', yTo: '' });
 function newPiece(title, composer, names, kind, instr){
   const g = guessKind(title) || { kind: 'other', instr: 'any' };
-  return { id: uid(), title, composer, kind: kind || g.kind, instr: instr || g.instr, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true } };
+  return { id: uid(), title, composer, kind: kind || g.kind, instr: instr || g.instr, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true, relaySecs: [], relayOrder: 'section' } };
 }
 function seedState(){
   const p = newPiece('교향곡 5번 c단조, Op. 67', '베토벤', ['1악장 Allegro con brio', '2악장 Andante con moto', '3악장 Allegro', '4악장 Allegro']);
@@ -1007,7 +1018,8 @@ function normalizePiece(p){
   }));
   p.recordings.forEach(r => { if (r.slot == null) r.slot = nextSlot(p, r); });
   const v = p.view || {};
-  p.view = { f: Object.assign(emptyFilter(), v.f || {}), excluded: Array.isArray(v.excluded) ? v.excluded : [], sort: v.sort || 'added', open: v.open !== false };
+  p.view = { f: Object.assign(emptyFilter(), v.f || {}), excluded: Array.isArray(v.excluded) ? v.excluded : [], sort: v.sort || 'added', open: v.open !== false,
+    relaySecs: Array.isArray(v.relaySecs) ? v.relaySecs : [], relayOrder: v.relayOrder === 'rec' ? 'rec' : 'section' };
   return p;
 }
 function loadState(){
@@ -1158,13 +1170,13 @@ function onPlayerReady(id){
 function onPlayerState(id, st){
   if (st === 1) { // playing
     pauseOthers(id);
-    if (ui.relay && ui.relay.queue[ui.relay.i] !== id) stopRelay();
+    if (ui.relay && !ui.relay.pending && ui.relay.queue[ui.relay.i]?.rid !== id) stopRelay();
     ui.activeRecId = id;
     const rec = findRec(id), e = players[id];
     if (rec && e && !isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(); } }
     markPlaying();
   } else if (st === 0) { // ended
-    if (ui.relay && ui.relay.queue[ui.relay.i] === id) relayNext();
+    if (ui.relay && ui.relay.queue[ui.relay.i]?.rid === id) relayNext();
     markPlaying();
   } else if (st === 2) markPlaying();
 }
@@ -1182,7 +1194,7 @@ function onPlayerError(id, code){
   const box = card.querySelector('.player-msg');
   box.innerHTML = `<div>${esc(msg)}</div><a href="https://www.youtube.com/watch?v=${esc(rec.videoId)}" target="_blank" rel="noopener">유튜브에서 열기 ↗</a>`;
   box.hidden = false;
-  if (ui.relay && ui.relay.queue[ui.relay.i] === id) relayNext();
+  if (ui.relay && ui.relay.queue[ui.relay.i]?.rid === id) relayNext();
 }
 function pauseOthers(id){
   for (const [k, e] of Object.entries(players)) {
@@ -1251,19 +1263,35 @@ function markNow(rec){
 }
 
 /* ---------- relay ---------- */
+function relaySids(p){
+  const v = p.view;
+  v.relaySecs = v.relaySecs.filter(id => p.sections.some(s => s.id === id));
+  return v.relaySecs.length ? p.sections.filter(s => v.relaySecs.includes(s.id)).map(s => s.id) : [ui.sectionId];
+}
+function buildRelayQueue(p){
+  const sids = relaySids(p), recs = selectedRecs(p), queue = [];
+  const ok = (r, sid) => sectionStart(r, sid) != null;
+  if (p.view.relayOrder === 'rec') recs.forEach(r => sids.forEach(sid => ok(r, sid) && queue.push({ rid: r.id, sid })));
+  else sids.forEach(sid => recs.forEach(r => ok(r, sid) && queue.push({ rid: r.id, sid })));
+  return { queue, total: sids.length * recs.length };
+}
 function startRelay(){
-  const p = cur(), sid = ui.sectionId;
-  const queue = selectedRecs(p).filter(r => sectionStart(r, sid) != null && players[r.id]?.ready && !players[r.id].error).map(r => r.id);
-  if (!queue.length) { toast('이 구간의 시작 시간이 표시된 녹음이 없어요.'); return; }
+  const p = cur();
+  stopRelay();
+  const { queue, total } = buildRelayQueue(p);
+  const playable = queue.filter(q => players[q.rid]?.ready && !players[q.rid].error);
+  if (!playable.length) { toast(queue.length ? '플레이어를 준비하는 중이에요. 잠시 후 다시 눌러주세요.' : '고른 구간의 시작 시간이 표시된 녹음이 없어요.'); return; }
   const limit = Math.max(0, parseFloat($('#relay-limit').value) || 0);
-  ui.relay = { sid, queue, i: 0, limit, until: null, pending: false };
+  ui.relay = { queue: playable, i: 0, limit, until: null, pending: false };
+  if (playable.length < total) toast(`시작 시간이 없거나 재생할 수 없는 ${total - playable.length}곳은 건너뛰어요.`);
   relayPlayCurrent();
 }
 function relayPlayCurrent(){
   const R = ui.relay, p = cur(); if (!R) return;
-  const rec = findRec(R.queue[R.i]); if (!rec) { relayNext(); return; }
-  const st = sectionStart(rec, R.sid);
-  let en = playEnd(p, rec, R.sid);
+  const item = R.queue[R.i], rec = findRec(item?.rid); if (!rec) { R.pending = false; relayNext(); return; }
+  if (item.sid !== ui.sectionId) selectSection(item.sid);
+  const st = sectionStart(rec, item.sid);
+  let en = playEnd(p, rec, item.sid);
   if (R.limit > 0) en = en == null ? st + R.limit : Math.min(en, st + R.limit);
   R.until = en; R.pending = false;
   const e = players[rec.id];
@@ -1275,19 +1303,20 @@ function relayPlayCurrent(){
 function relayNext(){
   const R = ui.relay; if (!R || R.pending) return;
   R.pending = true;
-  const id = R.queue[R.i];
-  try { players[id]?.player.pauseVideo(); } catch (err) {}
+  const prev = R.queue[R.i];
+  try { players[prev.rid]?.player.pauseVideo(); } catch (err) {}
   R.i++;
   if (R.i >= R.queue.length) { stopRelay(); toast('릴레이가 끝났어요.'); return; }
   updateRelayStatus();
-  setTimeout(() => { if (ui.relay === R) relayPlayCurrent(); }, 700);
+  const gap = R.queue[R.i].sid !== prev.sid ? 1600 : 700; // a longer breath when the section changes
+  setTimeout(() => { if (ui.relay === R) relayPlayCurrent(); }, gap);
 }
 function stopRelay(){ if (!ui.relay) return; ui.relay = null; updateRelayStatus(); }
 function updateRelayStatus(){
   const R = ui.relay, el = $('#relay-status');
   if (!R) { el.textContent = ''; return; }
-  const rec = findRec(R.queue[R.i]);
-  el.textContent = `릴레이 ${Math.min(R.i + 1, R.queue.length)}/${R.queue.length} · ${rec ? recLabelFull(rec) : ''}`;
+  const item = R.queue[Math.min(R.i, R.queue.length - 1)], rec = findRec(item.rid), p = cur();
+  el.textContent = `릴레이 ${Math.min(R.i + 1, R.queue.length)}/${R.queue.length} · ${secIndex(p, item.sid) + 1}. ${secName(p, item.sid)} · ${rec ? recLabelFull(rec) : ''}`;
 }
 
 /* ---------- tick ---------- */
@@ -1313,7 +1342,7 @@ setInterval(() => {
   // relay
   const R = ui.relay;
   if (R && !R.pending && R.until != null) {
-    const id = R.queue[R.i], t = currentTimeOf(id);
+    const id = R.queue[R.i].rid, t = currentTimeOf(id);
     if (t != null && isPlaying(id) && t >= R.until - 0.15) relayNext();
   }
 }, 200);
@@ -1388,8 +1417,22 @@ function renderTabs(){
   document.querySelectorAll('.tabs button').forEach(b => { const on = b.dataset.tab === ui.tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
   ['listen', 'chart', 'notes'].forEach(t => $('#tab-' + t).hidden = t !== ui.tab);
 }
+function renderRelayControls(){
+  const p = cur(), v = p.view, sids = relaySids(p), picked = new Set(v.relaySecs);
+  const allOn = p.sections.length > 1 && picked.size === p.sections.length;
+  $('#relay-secs').innerHTML = p.sections.map((s, i) => `<button class="${picked.has(s.id) ? 'on' : ''}" data-sid="${s.id}" aria-pressed="${picked.has(s.id)}" title="${esc(s.name)}">${i + 1}</button>`).join('')
+    + (p.sections.length > 1 ? `<button class="all" data-all="1">${allOn ? '해제' : '모두'}</button>` : '');
+  $('#relay-order').value = v.relayOrder;
+  $('#relay-order').hidden = sids.length < 2;
+  const { queue } = buildRelayQueue(p);
+  const names = sids.map(id => `${secIndex(p, id) + 1}. ${secName(p, id)}`);
+  $('#relay-hint').textContent = !picked.size
+    ? `릴레이 구간을 고르지 않으면 위에서 선택한 구간(${names[0] || ''})만 들어요. 번호를 눌러 여러 구간을 고를 수 있어요.`
+    : `${names.join(', ')} · ${v.relayOrder === 'rec' ? '연주마다 고른 구간을 차례로' : '구간마다 모든 연주를 차례로'} · 모두 ${queue.length}번 재생`;
+}
 function renderChips(){
   const p = cur();
+  renderRelayControls();
   $('#section-chips').innerHTML = p.sections.map((s, i) => `<button class="chip ${s.id === ui.sectionId ? 'on' : ''} ${s.id === lastLiveSid ? 'live' : ''}" data-sid="${s.id}" title="${esc(s.name)}"><span class="chip-n">${i + 1}</span>${esc(s.name)}</button>`).join('');
 }
 function selectSection(sid){
@@ -1479,7 +1522,7 @@ function markPlaying(){
   setTimeout(() => cur() === p && selectedRecs(p).forEach(r => cardEl(r.id)?.classList.toggle('playing', r.id === ui.activeRecId && isPlaying(r.id))), 400);
 }
 function afterMarkerChange(rec){
-  save(); updateCard(rec);
+  save(); updateCard(rec); renderRelayControls();
   if (ui.tab === 'chart') renderChart();
 }
 
@@ -1687,6 +1730,14 @@ $('#section-chips').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (b) selectSection(b.dataset.sid);
 });
 $('#btn-relay').addEventListener('click', startRelay);
+$('#relay-secs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const p = cur(), v = p.view;
+  if (b.dataset.all) v.relaySecs = v.relaySecs.length === p.sections.length ? [] : p.sections.map(s => s.id);
+  else v.relaySecs = v.relaySecs.includes(b.dataset.sid) ? v.relaySecs.filter(x => x !== b.dataset.sid) : [...v.relaySecs, b.dataset.sid];
+  save(); renderRelayControls();
+});
+$('#relay-order').addEventListener('change', e => { cur().view.relayOrder = e.target.value; save(); renderRelayControls(); });
 $('#btn-stop').addEventListener('click', stopAll);
 
 const grid = $('#rec-grid');
