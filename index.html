@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="app-version" content="2026.11.18-5">
+<meta name="app-version" content="2026.11.19-1">
 <title>연주 비교 노트</title>
 <style>
 :root{
@@ -278,6 +278,33 @@ details.markers summary{cursor:pointer;font-size:12.5px;color:var(--ink-2);user-
 .stat .v{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .stat .d{font-size:12px;color:var(--muted)}
 
+.tabs button.has::after{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:5px;vertical-align:2px}
+.ex-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.ex-head h3{margin:0;font-size:17px}
+.ex-head .caption{margin:2px 0 0}
+.ex-link{font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.ex-link select{background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:4px 6px;font-size:12.5px;max-width:260px}
+.viz-card h4{margin:0 0 6px;font-size:14px}
+.viz-card p{margin:0;font-size:13.5px;line-height:1.65}
+.ex-listen{margin:0;padding-left:18px;font-size:13.5px;line-height:1.65;display:flex;flex-direction:column;gap:3px}
+.ex-small{font-size:12px;color:var(--muted);margin-top:8px!important}
+.ex-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;margin-bottom:14px}
+.ex-rec{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.ex-rec.mine{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.ex-rec-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
+.ex-rec-head b{font-size:14.5px}
+.ex-rec-head .muted{font-size:12.5px}
+.ex-tags{display:flex;flex-wrap:wrap;gap:4px}
+.ex-tags span{font-size:11.5px;border-radius:999px;padding:1px 8px;background:var(--accent-soft);color:var(--ink-2)}
+.ex-tags span.neg{background:color-mix(in oklab,var(--slow) 14%,var(--surface))}
+.ex-notes{margin:0;padding-left:16px;font-size:13px;line-height:1.6;display:flex;flex-direction:column;gap:5px}
+.ex-notes a.src{font-size:11.5px;color:var(--accent);text-decoration:none;white-space:nowrap;margin-left:3px}
+.ex-act{margin-top:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px}
+.ex-act .ok{color:var(--accent);font-weight:600}
+.ex-sources{margin:0;padding-left:18px;font-size:12.5px;line-height:1.7}
+.ex-sources a{color:var(--accent)}
+.ex-copy-box{width:100%;min-height:160px;font-size:12.5px;margin-top:8px}
+
 /* notes */
 .sub-h{font-size:15px;margin:4px 0 10px}
 .note-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:26px}
@@ -396,6 +423,7 @@ dialog h2{margin:0;font-size:17px}
         <button data-tab="listen" role="tab">비교 듣기</button>
         <button data-tab="chart" role="tab">템포·시간 차트</button>
         <button data-tab="notes" role="tab">해설 노트</button>
+        <button data-tab="experts" role="tab">전문가 해설</button>
       </nav>
 
       <div id="tab-listen" class="tab-panel">
@@ -441,6 +469,10 @@ dialog h2{margin:0;font-size:17px}
 
       <div id="tab-notes" class="tab-panel" hidden>
         <div id="notes-content"></div>
+      </div>
+
+      <div id="tab-experts" class="tab-panel" hidden>
+        <div id="experts-content"></div>
       </div>
     </section>
   </main>
@@ -677,6 +709,9 @@ const CAT = (() => {
       마이클 틸슨 토머스|Michael Tilson Thomas
       트레버 피녹|Trevor Pinnock
       톤 코프만|Ton Koopman
+      찰스 매케러스|Charles Mackerras
+      로저 노링턴|Roger Norrington
+      오스모 벤스케|Osmo Vänskä
       마사아키 스즈키|Masaaki Suzuki
       르네 야콥스|René Jacobs`),
     orchestra: L(`
@@ -769,7 +804,13 @@ const CAT = (() => {
       백건우|Kun-Woo Paik
       손열음|Yeol Eum Son
       조성진|Seong-Jin Cho
-      임윤찬|Yunchan Lim`),
+      임윤찬|Yunchan Lim
+      안니 피셔|Annie Fischer
+      스티븐 코바세비치|Stephen Kovacevich
+      리처드 구드|Richard Goode
+      스티븐 허프|Stephen Hough
+      로날드 브라우티함|Ronald Brautigam
+      니콜라이 루간스키|Nikolai Lugansky`),
     keyboard: L(`
       구스타프 레온하르트|Gustav Leonhardt
       트레버 피녹|Trevor Pinnock
@@ -1029,6 +1070,177 @@ function makeCombo(input, getGroups){
   return { close };
 }
 
+/* ---------- expert commentary (critics' views, summarised in Korean; see sources) ---------- */
+const EXPERT_SRC = {
+  g5: { name: 'Gramophone · 교향곡 5번 핵심 음반 가이드 (2023)', url: 'https://www.gramophone.co.uk/feature/beethoven-symphony-no-5' },
+  gk: { name: 'Gramophone · 클라이버 5·7번 음반 리뷰', url: 'https://gramophone.co.uk/review/beethoven-symphonies-nos-5-and-7' },
+  sd: { name: 'Slipped Disc · 노먼 레브레히트 (2020)', url: 'https://slippedisc.com/?p=668816' },
+  cfm: { name: 'Classic FM · 베토벤 5번 음반 고르기', url: 'https://www.classicfm.com/composers/beethoven/guides/how-buy-beethovens-fifth-symphony/' },
+  cmf: { name: 'BBC Music Magazine · 베토벤 교향곡 추천 음반', url: 'https://www.classical-music.com/article/best-recordings-beethovens-symphonies' },
+  mw: { name: 'MusicWeb International · 클렘페러 5·7번 리뷰', url: 'https://musicwebinternational.com/?p=22257' },
+  hf: { name: 'Hi-Fi+ · Classic Albums (2014)', url: 'https://hifiplus.com/articles/classic-albums-beethovens-5th-and-7th-symphony-vienna-philharmonia-carlos-kleiber-cond/' },
+  g7: { name: 'Gramophone · 리처드 오스본, 7번 명반 가이드', url: 'https://gramophone.co.uk/articles/beethoven-s-seventh-symphony-a-guide-to-the-greatest-recordings' },
+  cm7: { name: 'BBC Music Magazine · 마이클 빅, 7번 추천 음반', url: 'https://www.classical-music.com/features/recordings/best-recordings-beethovens-symphony-no-7/' },
+  presto: { name: 'Presto Music · 클라이버 5·7번 수상 내역', url: 'https://www.prestomusic.com/aff/1001/classical/products/7924176--carlos+kleiber-beethoven%3A+symphonies+nos.5+%26+7' },
+  gm: { name: 'Gramophone · 제드 디스틀러, 월광 소나타 명반 비교 (2024)', url: 'https://gramophone.co.uk/articles/beethoven-s-moonlight-sonata-a-deep-dive-into-the-best-recordings' },
+  cmm: { name: 'BBC Music Magazine · 프레야 파, 월광 소나타 추천 음반', url: 'https://www.classical-music.com/features/recordings/best-recordings-beethovens-moonlight-sonata' },
+  cr: { name: 'The Classic Review · 월광 소나타 Top 10', url: 'https://theclassicreview.com/best-of/top-10-beethoven-piano-sonata-no-14-moonlight-the-best-recordings/' },
+  npr: { name: 'NPR · 왜 우리는 월광 소나타를 사랑할까 (2008)', url: 'https://www.npr.org/2008/01/31/18577817/why-do-we-love-the-moonlight-sonata' }
+};
+const EXPERTS = [
+  {
+    id: 'beethoven-sym5', title: '베토벤 교향곡 5번 c단조, Op. 67', search: 'Beethoven Symphony No. 5',
+    match: t => /(교향곡|symph|sinfonie)/i.test(t) && /(5\s*번|no\.?\s*5(?!\d)|op\.?\s*67|운명|fifth)/i.test(t),
+    overview: '평론가들은 대체로 카를로스 클라이버/빈 필(1974)을 기준 음반으로 꼽아요. 그 맞은편에는 템포를 크게 움직이는 푸르트벵글러의 전시·전후 실황, 흔들림 없이 곧게 가는 토스카니니·클렘페러, 베토벤의 메트로놈과 작은 편성으로 가볍고 날카롭게 가는 시대악기·고전주의 계열(가디너, 노링턴, 매케러스, 샤이)이 있어요.',
+    listen: [
+      '1악장 첫 네 음: 페르마타를 얼마나 길게 끄는지, 동기를 템포 안에서 칼같이 치는지 아니면 늘이며 무게를 싣는지',
+      '1악장 재현부의 짧은 오보에 독주(아다지오): 숨을 고르듯 길게 끄는지, 바로 다음으로 넘어가는지',
+      '2악장 변주: 비올라·첼로 주제의 레가토와, 금관·팀파니가 끼어드는 다장조 대목의 대비',
+      '3악장 트리오: 첼로·콘트라베이스 푸가의 아티큘레이션(끊는지, 무겁게 긋는지), 그리고 4악장으로 넘어가는 긴 크레셴도',
+      '4악장: 제시부 반복을 하는지, 코다(Presto)에서 얼마나 속도를 올리는지'
+    ],
+    recs: [
+      { names: ['카를로스 클라이버'], who: '카를로스 클라이버', ens: '빈 필하모닉', year: '1974', label: 'DG', tags: ['Gramophone 클래식 추천', 'Classic FM 1위'], q: 'Carlos Kleiber Vienna Philharmonic 1974',
+        notes: [
+          ['gk', '지금껏 들은 5번 중 가장 또렷하게 말하고 강렬한 연주 가운데 하나라고 평가해요. 첫 동기에 셋잇단 리듬 느낌이 살짝 묻어 있어 독일 평론가들 사이에서 화제가 됐고, 스케르초와 피날레는 템포가 흔들림 없이 꾸준하다고 해요.'],
+          ['sd', '1악장은 총알처럼 빠르고 2악장은 짧은 숨 돌림이에요. 목관 독주와 구간 사이 전환을 다루는 솜씨는 놀랍지만, 피날레의 분노는 다소 과하다고 봐요. 아버지 에리히보다 피날레가 1분 반쯤 느리다고 해요.'],
+          ['cfm', '세부가 아주 많이 들리고, 2악장 현이 달콤하고 풍성해 강한 바깥 악장들과 대비돼요. 피날레의 고조와 폭발적인 마무리를 높이 사며 최종 1위로 꼽았어요.'],
+          ['hf', '수십 가지 형태로 재발매되며 한 번도 절판된 적 없는, 5·7번 녹음의 정점으로 소개해요.'],
+          ['presto', '7번과 함께 실린 이 음반은 BBC Radio 3 Building a Library 1순위(1999·2007), Gramophone 100대 명반 등에 올라 있어요.']
+        ] },
+      { names: ['에리히 클라이버'], who: '에리히 클라이버', ens: '로열 콘세르트헤바우 오케스트라', year: '1953', label: 'Decca', tags: ['레브레히트 선호'], q: 'Erich Kleiber Concertgebouw 1953',
+        notes: [['sd', '1악장은 팽팽하고 단단하며 안단테는 절제된 템포예요. 힘을 아껴 두었다가 피날레에서 무섭게 터뜨린다고 평하며, 아들 카를로스보다 더 정직하고 설득력 있는 베토벤으로 봐요.']] },
+      { names: ['빌헬름 푸르트벵글러'], who: '빌헬름 푸르트벵글러', ens: '베를린 필하모닉', year: '1940년대 실황', label: '', tags: ['역사적 명연'], q: 'Furtwängler Berlin Philharmonic 1947',
+        notes: [
+          ['cmf', '템포를 크게 움직여 다른 지휘자보다 자의적으로 들릴 수 있지만, 음악적 통찰은 비전에 가깝다고 평해요. 60년이 넘은 모노 녹음인데도 여전히 기준 음반으로 남아 있다고 해요.'],
+          ['hf', '클라이버 대신 1940~50년대 푸르트벵글러나 1960년대 초 카라얀(베를린 필)을 고르는 사람도 많다고 소개해요.']
+        ] },
+      { names: ['아르투로 토스카니니'], who: '아르투로 토스카니니', ens: '뉴욕 필하모닉', year: '1933', label: 'Naxos', tags: ['Gramophone 빈티지 추천'], q: 'Toscanini Beethoven 5 1933',
+        notes: [
+          ['g5', '이후 이 곡을 맡는 지휘자라면 누구나 넘어야 할, 따라가기 매우 어려운 기준이라고 해요.'],
+          ['cfm', '빠른 템포와 정확한 연주, 통제된 다이내믹으로 흐트러짐이 없고 피날레가 짜릿하다고 해요.']
+        ] },
+      { names: ['오토 클렘페러'], who: '오토 클렘페러', ens: '필하모니아 오케스트라', year: '1955', label: 'Warner', tags: [], q: 'Klemperer Philharmonia Beethoven 5',
+        notes: [['mw', '클렘페러는 유명한 네 음 동기를 언제나 템포 안에서 정확히 두드려요. 동기를 늘이는 푸르트벵글러식과 정반대예요.']] },
+      { names: ['존 엘리엇 가디너'], who: '존 엘리엇 가디너', ens: '혁명과 낭만 오케스트라', year: '', label: 'Soli Deo Gloria', tags: ['Gramophone 현대 추천'], q: 'Gardiner ORR Beethoven 5',
+        notes: [['g5', '작품의 거칠고 군대 같은 면을 부각해요. 금관과 북이 2악장의 부드러운 변주를 날카롭게 끊고 들어오고, 피날레는 승리감으로 힘차게 밀려온다고 해요.']] },
+      { names: ['로저 노링턴'], who: '로저 노링턴', ens: '시대악기 오케스트라', year: '', label: '', tags: [], q: 'Norrington Beethoven 5',
+        notes: [['cfm', '베토벤의 원래 메트로놈을 따라 빠르게 가요. 금관과 타악기 비중이 크고(특히 1악장), 3악장 아티큘레이션이 또렷하다고 해요.']] },
+      { names: ['리카르도 샤이'], who: '리카르도 샤이', ens: '라이프치히 게반트하우스 오케스트라', year: '', label: 'Decca', tags: [], q: 'Chailly Gewandhaus Beethoven 5',
+        notes: [['cfm', '원래 템포를 따르며 1악장은 힘차게 몰아가고 피날레는 강하게 밀어붙여요. 피콜로가 유난히 잘 들리고 소리가 풍부하다고 해요.']] },
+      { names: ['찰스 매케러스'], who: '찰스 매케러스', ens: '축소 편성 (실황)', year: '', label: '', tags: [], q: 'Mackerras Beethoven 5',
+        notes: [['cfm', '편성을 줄여 투명하고, 처음부터 끝까지 밝고 경쾌해요. 관객 소음이 조금 있지만 공연장 느낌이 산다고 해요.']] }
+    ]
+  },
+  {
+    id: 'beethoven-sym7', title: '베토벤 교향곡 7번 A장조, Op. 92', search: 'Beethoven Symphony No. 7',
+    match: t => /(교향곡|symph|sinfonie)/i.test(t) && /(7\s*번|no\.?\s*7(?!\d)|op\.?\s*92|seventh)/i.test(t),
+    overview: '7번은 평론가마다 1순위가 갈려요. 그라모폰의 리처드 오스본은 아바도/베를린 필 2001년 로마 실황을, BBC Music Magazine은 아바도/베를린 필 1999년 DG 녹음을 1순위로 꼽았어요. 카를로스 클라이버/빈 필은 명반으로 널리 꼽히지만, 오스본은 녹음이 거칠다는 이유로 뵘/빈 필보다 아래에 뒀어요. 템포(특히 2악장 알레그레토와 3악장 트리오의 속도)와 반복 처리가 해석을 가르는 지점이에요.',
+    listen: [
+      '서주(Poco sostenuto): 템포와 오보에 선율의 프레이징, 비바체로 넘어가는 전환',
+      '1악장 비바체: 점리듬(긴-짧은-긴)을 얼마나 날카롭게 끊는지, 춤처럼 튀는지 무겁게 디디는지',
+      '2악장 알레그레토: 장송 행진처럼 느리게 가는지, 표기대로 걷는 속도로 가는지, 처음과 끝 관악 화음을 얼마나 끄는지',
+      '3악장 트리오(Assai meno presto): 메트로놈 그대로인지, 훨씬 느리게 찬가처럼 가는지',
+      '4악장: 속도와 반복 여부, 첼로·베이스 지속음의 악센트'
+    ],
+    recs: [
+      { names: ['클라우디오 아바도'], who: '클라우디오 아바도', ens: '베를린 필하모닉', year: '2001 로마 실황', label: 'EuroArts(영상) · DG', tags: ['Gramophone 오스본 1순위'], q: 'Abbado Berlin Philharmonic Beethoven 7 Rome 2001',
+        notes: [['g7', '멈출 수 없는 에너지와 기쁨이 화살처럼 끊김 없이 이어진다고 해요. 오스본이 들어본 7번 중 최고로 꼽았고, 연주 모습이 담긴 영상판을 더 권해요.']] },
+      { names: ['클라우디오 아바도'], who: '클라우디오 아바도', ens: '베를린 필하모닉', year: '1999', label: 'DG', tags: ['BBC Music Magazine 1위'], q: 'Abbado Berlin Philharmonic Beethoven 7 1999',
+        notes: [['cm7', '서주 오보에 선율을 은근히 우아하게 프레이징하고, 본 알레그로로 넘어가는 전환이 훌륭하다고 해요. 마법 같은 피아니시모부터 강력한 포르티시모까지 폭이 넓고, 알레그레토 첫 클라이맥스에 짙은 우수가 있다고 평해요.']] },
+      { names: ['카를로스 클라이버'], who: '카를로스 클라이버', ens: '빈 필하모닉', year: '1975~76', label: 'DG', tags: ['명반으로 널리 꼽힘'], q: 'Carlos Kleiber Vienna Philharmonic Beethoven 7',
+        notes: [
+          ['presto', '5번과 함께 실린 이 음반은 BBC Radio 3 Building a Library 1순위(1999·2007), Gramophone 100대 명반 등에 올라 있어요.'],
+          ['gk', '5번과 똑같이 뛰어난 연주예요. 새 리마스터로 소리가 훨씬 좋아졌고, 1·2바이올린을 좌우로 나눈 배치가 드물어서 오히려 5번보다 중요하다고 봐요.'],
+          ['g7', '오스본은 강도와 긴박감은 뵘에 맞먹지만 녹음이 거칠고 화려함이 부족하다고 봐요.']
+        ] },
+      { names: ['카를 뵘'], who: '카를 뵘', ens: '빈 필하모닉', year: '1971', label: 'DG', tags: ['Gramophone 오스본 추천'], q: 'Karl Böhm Vienna Philharmonic Beethoven 7 1971',
+        notes: [['g7', '현대 녹음 가운데 손꼽히는 연주로, 축제 같은 빈 특유의 성격이 살아 있다고 해요.']] },
+      { names: ['빌헬름 푸르트벵글러'], who: '빌헬름 푸르트벵글러', ens: '베를린 필하모닉', year: '1943', label: 'DG', tags: ['Gramophone 오스본 추천'], q: 'Furtwängler Berlin 1943 Beethoven 7',
+        notes: [['g7', '압도적이고 절박하기까지 한 연주라고 해요. 서주를 메트로놈보다 느리게 열고 트리오는 아주 느리고 무겁게 가며, 알레그레토의 처음과 끝 화음을 길게 끌어 서늘한 효과를 낸다고 분석해요. 1953년 녹음은 소리가 더 좋고, 절제됐지만 흥분되는 연주로 봐요.']] },
+      { names: ['오토 클렘페러'], who: '오토 클렘페러', ens: '필하모니아 오케스트라', year: '1955', label: 'Warner', tags: ['Gramophone 오스본 추천'], q: 'Klemperer Philharmonia Beethoven 7 1955',
+        notes: [['g7', '극적인 불꽃과 건축적인 힘이 있고, 서주의 오보에가 훌륭하며 코다의 강한 화음 배치가 적절하다고 해요. 다만 넓은 템포가 날에 따라서는 너무 신중하게 느껴질 수 있다고 봐요.']] },
+      { names: ['레너드 번스타인'], who: '레너드 번스타인', ens: '뉴욕 필하모닉', year: '1964', label: 'Sony', tags: [], q: 'Bernstein New York Philharmonic Beethoven 7 1964',
+        notes: [['g7', '모든 반복을 지키는데도 늘어지지 않고, 첫 음부터 너그럽고 즐거운 위대함이 있다고 해요. 반면 1977년 빈 필 실황은 이 연주에 크게 못 미친다고 봐요.']] },
+      { names: ['헤르베르트 폰 카라얀'], who: '헤르베르트 폰 카라얀', ens: '베를린 필하모닉', year: '1962', label: 'DG', tags: [], q: 'Karajan Berlin Philharmonic Beethoven 7 1962',
+        notes: [['g7', '아주 정교하고 세심하게 다듬은 연주예요. 카라얀이 토스카니니 1936년 녹음의 자기 시대판을 의도했다고 해요.']] },
+      { names: ['아르투로 토스카니니'], who: '아르투로 토스카니니', ens: '뉴욕 필하모닉', year: '1936', label: 'Naxos', tags: [], q: 'Toscanini New York Philharmonic 1936 Beethoven 7',
+        notes: [['g7', '알레그레토를 비교적 느리게 시작해 점점 빨라지게 해서 음악이 위로 솟는 흐름을 살린다고 해요. 1939년 NBC 녹음은 딱딱하고 기계적이라고 혹평하고, 1951년 실황에서 트리오를 악보의 메트로놈대로 친 것은 실수라고 봐요.']] },
+      { names: ['존 엘리엇 가디너'], who: '존 엘리엇 가디너', ens: '혁명과 낭만 오케스트라', year: '1995', label: 'Archiv', tags: [], q: 'Gardiner ORR Beethoven 7',
+        notes: [['cm7', '열띤 리듬, 강조된 스포르찬도, 날카로운 다이내믹·아티큘레이션 대비로 날것의 화산 같은 에너지를 낸다고 해요.']] },
+      { names: ['리카르도 샤이'], who: '리카르도 샤이', ens: '라이프치히 게반트하우스 오케스트라', year: '', label: 'Decca', tags: [], q: 'Chailly Gewandhaus Beethoven 7',
+        notes: [
+          ['cm7', '빠르고 리듬이 팽팽한 고전적 접근이에요. 가는 현 소리 덕에 목관·금관·팀파니가 또렷이 뚫고 나오고, 스케르초는 멘델스존처럼 가볍다고 해요.'],
+          ['g7', '오스본은 재치 있고 논리가 날카롭지만 피날레가 서두르고 가볍다고 봐요.']
+        ] },
+      { names: ['오스모 벤스케'], who: '오스모 벤스케', ens: '미네소타 오케스트라', year: '2008', label: 'BIS', tags: [], q: 'Vänskä Minnesota Beethoven 7',
+        notes: [['cm7', '앞으로 내달리는 시작, 맥박 치는 내성 현, 악센트를 준 첼로·베이스가 특징이에요. 베토벤의 표기를 꼼꼼히 따르고, 스케르초에는 유머가, 알레그레토에는 따뜻함이 있다고 해요.']] },
+      { names: ['마리스 얀손스'], who: '마리스 얀손스', ens: '바이에른 방송 교향악단', year: '2012', label: 'BR Klassik', tags: [], q: 'Jansons Bavarian Radio Beethoven 7',
+        notes: [['g7', '짜릿하면서도 음악의 문법에 흠이 없다고 하며, 음반으로는 아바도와 대등하다고 봐요.']] },
+      { names: ['사이먼 래틀'], who: '사이먼 래틀', ens: '빈 필하모닉', year: '2002', label: 'Warner', tags: [], q: 'Rattle Vienna Philharmonic Beethoven 7',
+        notes: [['g7', '비브라토를 줄인 건조한 현 소리가 계산적으로 들릴 수 있지만, 전체적으로는 백열 같은 연주라고 해요.']] },
+      { names: ['구스타보 두다멜'], who: '구스타보 두다멜', ens: '시몬 볼리바르 교향악단', year: '2006', label: 'DG', tags: ['BBC Music Magazine 비추천'], q: 'Dudamel Simon Bolivar Beethoven 7',
+        notes: [['cm7', '피날레가 너무 빠르고 몰아붙여 리듬의 힘이 오히려 줄어요. 큰 투티는 무겁고, 조용한 대목에서 목관이 잘 섞이지 않아 섬세함이 부족하다고 해요.']] }
+    ]
+  },
+  {
+    id: 'beethoven-moonlight', title: '베토벤 피아노 소나타 14번 c#단조 ‘월광’, Op. 27-2', search: 'Beethoven Moonlight Sonata',
+    match: t => /(월광|moonlight|mondschein)/i.test(t) || (/(소나타|sonata)/i.test(t) && /(14\s*번|no\.?\s*14(?!\d)|op\.?\s*27\s*(no\.?\s*|-|\/)?\s*2)/i.test(t)),
+    overview: '월광은 같은 녹음을 두고도 평이 크게 갈려요. 1악장을 꿈결처럼 여리고 느리게 가는지, 담담하게 흐르게 하는지, 베토벤의 페달 지시를 얼마나 따르는지, 3악장을 분노로 몰아치는지 통제된 힘으로 가는지가 평가를 가르는 지점이에요. 그라모폰의 제드 디스틀러는 안니 피셔(Hungaroton)를, BBC Music Magazine은 스티븐 코바세비치를 1순위로 꼽았어요.',
+    listen: [
+      '1악장: 셋잇단 반주가 마디선을 의식하지 않고 흐르는지, 점리듬 선율(긴-짧은)의 두 번째 음을 늦추거나 무겁게 하는지',
+      '1악장 페달: 베토벤의 ‘약음기 없이(senza sordino)’ 지시대로 페달을 길게 밟아 울림을 섞는지, 화성마다 깨끗이 갈아 밟는지',
+      '2악장 알레그레토: 미뉴에트 같은 가벼움, 약박 악센트와 프레이즈 끝 처리가 자연스러운지 꾸민 듯한지',
+      '3악장 프레스토 아지타토: 아르페지오가 또렷한지, 스포르찬도 화음이 강하되 거칠지 않은지, 페달 양과 템포'
+    ],
+    recs: [
+      { names: ['안니 피셔'], who: '안니 피셔', ens: '', year: '1958~59(EMI) · 후기(Hungaroton)', label: 'Hungaroton / EMI', tags: ['Gramophone 디스틀러 1순위'], q: 'Annie Fischer Moonlight Sonata',
+        notes: [['gm', '매 마디를 살아내듯 연주하며 힘·서정·유연함의 균형이 가장 좋다고 해서 1순위로 꼽았어요. EMI판은 진심 어리고 유연하며, Hungaroton판은 소리가 더 좋고 피날레가 더 불타오른다고 해요.']] },
+      { names: ['스티븐 코바세비치'], who: '스티븐 코바세비치', ens: '', year: '1999', label: 'EMI', tags: ['BBC Music Magazine 1위'], q: 'Stephen Kovacevich Moonlight Sonata',
+        notes: [['cmm', '1악장을 과장하지 않아 클라이맥스가 흐름 속에서 자연스럽게 오르내려요. 2악장은 특별한 강조 없이 담담하고, 피날레는 격렬하면서도 아르페지오가 또렷하며 화음이 강하되 거칠지 않다고 해요. 녹음은 조금 답답하다고 해요.']] },
+      { names: ['빌헬름 켐프'], who: '빌헬름 켐프', ens: '', year: '1960', label: 'DG', tags: ['Gramophone 디스틀러 추천'], q: 'Wilhelm Kempff Moonlight Sonata 1960',
+        notes: [['gm', '켐프의 여러 녹음 중 1960년 단독 녹음을 가장 선호해요. 아다지오는 맑게 흐르고, 프레스토는 몇 군데 뭉개져도 흐름이 좋다고 해요. 1940년 녹음은 회오리 같은 프레스토와 경쾌한 알레그레토, 1956년 모노는 더 빠르고 알레그레토를 짧게 끊는다고 비교해요. 1965년 전집판은 소리와 해석 모두 덜 선호해요.']] },
+      { names: ['에밀 길렐스'], who: '에밀 길렐스', ens: '', year: '1980년대 초', label: 'DG', tags: ['BBC Music Magazine 추천'], q: 'Emil Gilels Moonlight Sonata',
+        notes: [
+          ['cmm', '해석을 덧붙이지 않는 직접적이고 정직한 연주예요. 익숙한 1악장에 개성이 좀 더 있어도 되지 않나 싶지만, 피날레는 강렬하면서도 통제를 잃지 않는다고 해요.'],
+          ['gm', 'DG 스튜디오판은 템포가 더 신중하고 음색이 정교해요. 1969년 카네기홀 실황은 프레스토를 두드리듯 몰아친다고 해요.'],
+          ['cr', '더 격한 다른 연주들과 달리 차분한 평정이 돋보인다고 해요.']
+        ] },
+      { names: ['라두 루푸'], who: '라두 루푸', ens: '', year: '1972', label: 'Decca', tags: ['평이 갈림'], q: 'Radu Lupu Moonlight Sonata',
+        notes: [
+          ['cmm', '1악장을 아주 여리게 시작해 몽환적이고 관능적인 소리를 내요. 베토벤의 의도와는 다를 수 있지만 설득력 있다고 해요. 피날레는 숨 쉬듯 쉼을 두며 물결치고, 녹음이 가장 따뜻하다고 해요.'],
+          ['gm', '디스틀러는 지나치게 탐닉적이라고 봐요. 아다지오가 너무 흐느적거리고 알레그레토의 당김과 늦춤이 꾸민 듯하며, 프레스토는 페달과 다이내믹이 과하다고 해요.']
+        ] },
+      { names: ['리처드 구드'], who: '리처드 구드', ens: '', year: '', label: '', tags: ['Gramophone 디스틀러 추천'], q: 'Richard Goode Moonlight Sonata',
+        notes: [['gm', '아다지오의 루바토가 섬세하고, 알레그레토는 사려 깊게 흔들려요. 프레스토는 페달을 절제하면서도 소리가 꽉 차 있다고 해요.']] },
+      { names: ['스티븐 허프'], who: '스티븐 허프', ens: '', year: '', label: 'Hyperion', tags: ['Gramophone 디스틀러 추천'], q: 'Stephen Hough Moonlight Sonata',
+        notes: [['gm', '긴장과 이완이 뚜렷해요. 아다지오의 셋잇단이 마디선에 묶이지 않고 흐르고, 알레그레토는 빠르고 표정이 좋다고 해요.']] },
+      { names: ['다니엘 바렌보임'], who: '다니엘 바렌보임', ens: '', year: '1980년대 초', label: 'DG', tags: [], q: 'Barenboim Moonlight Sonata DG',
+        notes: [['gm', '세 번의 녹음 가운데 1980년대 초 DG판의 프레이징이 가장 정성스럽고 유연하다고 해요. 16세 때 녹음은 양식 감각은 자연스럽지만 악센트가 무심하고 아티큘레이션이 약하다고 해요.']] },
+      { names: ['머레이 페라이어'], who: '머레이 페라이어', ens: '', year: '', label: 'DG', tags: [], q: 'Murray Perahia Moonlight Sonata',
+        notes: [['gm', '템포가 확고하고 다이내믹과 음색의 단계가 섬세해요. 알레그레토는 절제돼 있고 클라이맥스는 페달을 강하게 써서 힘 있다고 해요. DG의 울림 많은 녹음 탓에 도입부는 조금 덜 안정적으로 들린다고 해요.']] },
+      { names: ['언드라시 시프'], who: '언드라시 시프', ens: '', year: '', label: '', tags: [], q: 'Andras Schiff Moonlight Sonata',
+        notes: [['gm', '아다지오 내내 페달을 3분의 1쯤 밟고 있어 울림이 안개처럼 섞여요. 베토벤의 페달 지시를 현대 피아노에서 살리는 방식이에요.']] },
+      { names: ['로날드 브라우티함'], who: '로날드 브라우티함', ens: '', year: '', label: '', tags: ['포르테피아노'], q: 'Ronald Brautigam Moonlight Sonata fortepiano',
+        notes: [['gm', '포르테피아노 연주예요. 아다지오에서 리듬을 자주 조정하고 질감 대비와 뜻밖의 악센트를 써요. 알레그레토는 담담하게 시작해 점점 표정이 붙고, 프레스토는 거칠지 않으면서 강렬하다고 해요.']] },
+      { names: ['아르투르 슈나벨'], who: '아르투르 슈나벨', ens: '', year: '1934', label: '', tags: ['역사적 녹음'], q: 'Artur Schnabel Moonlight Sonata 1934',
+        notes: [['npr', '슈나벨의 베토벤 소나타 녹음은 지금도 기준으로 꼽히고, 그의 1934년 월광은 빠른 템포가 특징이라고 소개해요.']] },
+      { names: ['클라우디오 아라우'], who: '클라우디오 아라우', ens: '', year: '', label: 'EuroArts / Philips', tags: ['BBC Music Magazine 비추천'], q: 'Claudio Arrau Moonlight Sonata',
+        notes: [['cmm', '템포가 무겁고 힘겨움이 들리며 전달되는 것이 적다고 해요. 아라우가 대개는 뛰어난 예술가였다는 점은 인정해요.']] },
+      { names: ['니콜라이 루간스키'], who: '니콜라이 루간스키', ens: '', year: '', label: '', tags: [], q: 'Lugansky Moonlight Sonata',
+        notes: [['gm', '아다지오에서 점리듬의 두 번째 음을 늦게 쳐서 음악이 끌리고, 전체적으로 터치가 무겁다고 해요.']] }
+    ]
+  }
+];
+const BEETHOVEN_RE = /(베토벤|beethoven)/i;
+function findExpert(p){
+  if (!p) return null;
+  if (p.view?.expertId) return EXPERTS.find(x => x.id === p.view.expertId) || null;
+  const composerOk = !p.composer || BEETHOVEN_RE.test(p.composer) || BEETHOVEN_RE.test(p.title);
+  if (!composerOk) return null;
+  return EXPERTS.find(x => x.match(p.title)) || null;
+}
+
 /* ---------- state ---------- */
 const emptyFilter = () => ({ conductor: '', performer: '', ensemble: '', live: '', yFrom: '', yTo: '' });
 function newPiece(title, composer, names, kind, instr){
@@ -1059,7 +1271,7 @@ function normalizePiece(p){
   p.recordings.forEach(r => { if (isNum(r.end)) { if (lastSec && !isNum(r.ends[lastSec.id])) r.ends[lastSec.id] = r.end; r.end = null; } });
   const v = p.view || {};
   p.view = { f: Object.assign(emptyFilter(), v.f || {}), excluded: Array.isArray(v.excluded) ? v.excluded : [], sort: v.sort || 'added', open: v.open !== false,
-    relaySecs: Array.isArray(v.relaySecs) ? v.relaySecs : [], relayOrder: v.relayOrder === 'rec' ? 'rec' : 'section' };
+    relaySecs: Array.isArray(v.relaySecs) ? v.relaySecs : [], relayOrder: v.relayOrder === 'rec' ? 'rec' : 'section', expertId: v.expertId || null };
   return p;
 }
 function loadState(){
@@ -1426,6 +1638,7 @@ function renderAll(){
   updateAllCards();
   if (ui.tab === 'chart') renderChart();
   if (ui.tab === 'notes') renderNotes();
+  if (ui.tab === 'experts') renderExperts();
 }
 function renderSidebar(){
   const groups = new Map();
@@ -1476,7 +1689,8 @@ function afterSelectionChange(){
 }
 function renderTabs(){
   document.querySelectorAll('.tabs button').forEach(b => { const on = b.dataset.tab === ui.tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
-  ['listen', 'chart', 'notes'].forEach(t => $('#tab-' + t).hidden = t !== ui.tab);
+  ['listen', 'chart', 'notes', 'experts'].forEach(t => $('#tab-' + t).hidden = t !== ui.tab);
+  const exBtn = document.querySelector('.tabs [data-tab=experts]'); if (exBtn) exBtn.classList.toggle('has', !!findExpert(cur()));
 }
 function renderRelayControls(){
   const p = cur(), v = p.view, sids = relaySids(p), picked = new Set(v.relaySecs);
@@ -1754,6 +1968,90 @@ function renderTable(p, D){
   $('#dur-table').innerHTML = `<table class="dur-table">${head}<tbody>${body}<tr class="total"><th>합계</th>${totals.map(t => `<td>${t}</td>`).join('')}</tr></tbody></table>`;
 }
 
+/* ---------- expert commentary tab ---------- */
+const srcShort = k => (EXPERT_SRC[k]?.name || '').split(' · ')[0];
+function myRecsFor(p, e){
+  const y4 = s => (String(s || '').match(/\d{4}/) || [])[0];
+  return p.recordings.filter(r => {
+    const who = [r.conductor, r.performer].filter(Boolean);
+    const hit = e.names.some(n => who.includes(n) || (aliasFor(n) !== n && fold(r.videoTitle).includes(fold(aliasFor(n)))));
+    if (!hit) return false;
+    const ey = y4(e.year), ry = y4(r.year);
+    return !(ey && ry && ey !== ry);
+  });
+}
+function expertPrompt(p, ex){
+  const recs = selectedRecs(p);
+  const lines = [
+    `다음 클래식 작품의 녹음들을 비교해서, 연주자별 아티큘레이션(음을 끊고 잇는 방식, 악센트)과 프레이징(선율의 호흡, 루바토, 프레이즈 끝 처리) 차이를 설명해 줘.`,
+    `가능하면 평론가·음반 매체의 평가를 근거로 들고 출처를 알려줘. 확실하지 않은 내용은 추측이라고 밝혀 줘.`,
+    ``,
+    `작품: ${[p.composer, p.title].filter(Boolean).join(' ')}`,
+    `구간: ${p.sections.map((s, i) => `${i + 1}. ${secLabel(s)}`).join(', ')}`,
+    ``,
+    `비교할 녹음:`
+  ];
+  recs.forEach((r, i) => {
+    const durs = p.sections.map(s => { const d = sectionDuration(p, r, s.id); return d != null ? `${secLabel(s)} ${fmt(d)}` : null; }).filter(Boolean);
+    lines.push(`${i + 1}) ${[r.conductor && `지휘 ${r.conductor}`, r.performer && `연주 ${r.performer}`, r.ensemble, r.year, r.label].filter(Boolean).join(', ') || r.videoTitle}`
+      + (durs.length ? ` — 앱에서 잰 구간 길이: ${durs.join(', ')}` : ''));
+    if (r.note) lines.push(`   내 메모: ${r.note}`);
+  });
+  if (!recs.length) lines.push('(아직 고른 녹음이 없어요. 이 작품의 대표 녹음들을 골라 비교해 줘.)');
+  return lines.join('\n');
+}
+function renderExperts(){
+  const p = cur(), box = $('#experts-content'), ex = findExpert(p);
+  const picker = `<label class="ex-link">해설 연결 <select id="ex-pick">
+      <option value="" ${!p.view.expertId ? 'selected' : ''}>자동 (작품명으로 찾기)</option>
+      ${EXPERTS.map(x => `<option value="${x.id}" ${p.view.expertId === x.id ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}
+      <option value="__none" ${p.view.expertId === '__none' ? 'selected' : ''}>연결 안 함</option></select></label>`;
+  const askBox = `<div class="viz-card"><h4>Claude에게 물어보기</h4>
+      <p>이 작품과 지금 고른 녹음들, 앱에서 잰 구간 길이를 담은 질문을 만들어 드려요. 복사해서 Claude 앱에 붙여넣으면 연주자별 아티큘레이션·프레이징 비교를 물어볼 수 있어요.</p>
+      <div class="row" style="margin-top:8px"><button class="primary small" id="ex-copy">질문 복사</button><span id="ex-copy-msg" class="muted"></span></div>
+      <textarea id="ex-copy-box" class="ex-copy-box" readonly hidden></textarea></div>`;
+  if (!ex) {
+    box.innerHTML = `<div class="ex-head"><div><h3>전문가 해설</h3><p class="caption">${esc(p.title)}</p></div>${picker}</div>
+      <div class="empty" style="margin-bottom:14px"><b>이 작품의 전문가 해설은 아직 준비되지 않았어요</b>지금은 베토벤 교향곡 5번·7번과 ‘월광’ 소나타가 들어 있어요. 작품명이 달라 자동으로 연결되지 않았다면 오른쪽 위에서 직접 연결하세요.</div>${askBox}`;
+    return;
+  }
+  const used = new Set();
+  const recCards = ex.recs.map((e, i) => {
+    const mine = myRecsFor(p, e);
+    e.notes.forEach(([k]) => used.add(k));
+    const tags = e.tags.map(t => `<span class="${/비추천/.test(t) ? 'neg' : ''}">${esc(t)}</span>`).join('');
+    return `<div class="ex-rec ${mine.length ? 'mine' : ''}">
+      <div class="ex-rec-head"><b>${esc(e.who)}</b><span class="muted">${esc([e.ens, e.year, e.label].filter(Boolean).join(' · '))}</span></div>
+      ${tags ? `<div class="ex-tags">${tags}</div>` : ''}
+      <ul class="ex-notes">${e.notes.map(([k, t]) => `<li>${esc(t)}<a class="src" href="${esc(EXPERT_SRC[k].url)}" target="_blank" rel="noopener" title="${esc(EXPERT_SRC[k].name)}">— ${esc(srcShort(k))} ↗</a></li>`).join('')}</ul>
+      <div class="ex-act">${mine.length ? `<span class="ok">내 녹음에 있어요 ✓</span><span class="muted">${esc(mine.map(recLabelFull).join(', '))}</span>`
+        : `<button class="small" data-exi="${i}">유튜브에서 이 녹음 찾기</button>`}</div></div>`;
+  }).join('');
+  box.innerHTML = `<div class="ex-head"><div><h3>${esc(ex.title)}</h3><p class="caption">평론가와 음반 매체의 비교 평을 우리말로 요약했어요. 문장 끝 출처를 누르면 원문이 열려요.</p></div>${picker}</div>
+    <div class="viz-card"><h4>한눈에 보기</h4><p>${esc(ex.overview)}</p></div>
+    <div class="viz-card"><h4>아티큘레이션·프레이징, 이 부분을 들어보세요</h4>
+      <ul class="ex-listen">${ex.listen.map(t => `<li>${esc(t)}</li>`).join('')}</ul>
+      <p class="ex-small">이 목록은 평론이 아니라 앱이 정리한 감상 안내예요. 비교 듣기 탭에서 그 부분을 구간으로 나누고 릴레이로 이어 들으면 차이가 잘 들려요.</p></div>
+    <div class="ex-list">${recCards}</div>
+    <div class="viz-card"><h4>출처</h4><ol class="ex-sources">${[...used].map(k => `<li><a href="${esc(EXPERT_SRC[k].url)}" target="_blank" rel="noopener">${esc(EXPERT_SRC[k].name)}</a></li>`).join('')}</ol>
+      <p class="ex-small">평론의 문장을 그대로 옮기지 않고 요지만 요약했어요. 평가는 평론가마다 다를 수 있어요.</p></div>
+    ${askBox}`;
+}
+$('#experts-content').addEventListener('change', e => {
+  if (e.target.id !== 'ex-pick') return;
+  const p = cur(); p.view.expertId = e.target.value || null; save(); renderExperts(); renderTabs();
+});
+$('#experts-content').addEventListener('click', async e => {
+  const b = e.target.closest('[data-exi]');
+  if (b) { const ex = findExpert(cur()), r = ex.recs[+b.dataset.exi]; openSearch('add', `${ex.search} ${r.q}`); return; }
+  if (e.target.closest('#ex-copy')) {
+    const p = cur(), text = expertPrompt(p, findExpert(p)), ta = $('#ex-copy-box');
+    ta.value = text; ta.hidden = false;
+    try { await navigator.clipboard.writeText(text); $('#ex-copy-msg').textContent = '복사했어요. Claude 앱에 붙여넣으세요.'; }
+    catch (err) { ta.focus(); ta.select(); $('#ex-copy-msg').textContent = '자동 복사가 막혀 있어요. 아래 글을 길게 눌러 복사하세요.'; }
+  }
+});
+
 /* ---------- notes ---------- */
 function renderNotes(){
   const p = cur(), box = $('#notes-content');
@@ -1812,6 +2110,7 @@ document.querySelector('.tabs').addEventListener('click', e => {
   ui.tab = b.dataset.tab; hideTip(); renderTabs();
   if (ui.tab === 'chart') renderChart();
   if (ui.tab === 'notes') renderNotes();
+  if (ui.tab === 'experts') renderExperts();
   if (ui.tab === 'listen') { renderChips(); updateAllCards(); }
 });
 $('#section-chips').addEventListener('click', e => {
