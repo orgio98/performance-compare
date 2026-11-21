@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<meta name="app-version" content="2026.11.21-1">
+<meta name="app-version" content="2026.11.21-2">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png?v=1">
@@ -136,6 +136,11 @@ main{padding:20px 24px 60px;min-width:0}
 .combo-n{margin-left:auto;color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
 .combo-empty{padding:8px 12px;color:var(--muted)}
 .combo-opt mark{background:transparent;color:var(--accent);font-weight:600}
+.sync-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--muted)}
+.sync-dot.ok{background:#1baf7a}.sync-dot.busy{background:var(--accent)}.sync-dot.error{background:var(--danger)}.sync-dot.off{background:transparent;border:1.5px solid var(--muted)}
+.sync-steps{margin:0;padding-left:20px;font-size:13px;line-height:1.65;display:flex;flex-direction:column;gap:4px}
+.sync-steps a{color:var(--accent)}
+.sync-steps code{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-size:12px}
 .url-row{display:flex;gap:6px}
 .url-row input{flex:1;min-width:0}
 dialog.wide{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px)}
@@ -336,6 +341,15 @@ dialog h2{margin:0;font-size:17px}
 .err{color:var(--danger);font-size:12.5px;min-height:1em}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:9px 16px;border-radius:999px;font-size:13px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100vw - 32px)}
 
+.brand{white-space:nowrap}
+.top-actions button,.top-actions label.btn{white-space:nowrap}
+@media (max-width:600px){
+  .topbar{padding:8px 10px;gap:6px}
+  #app-ver{display:none}
+  .brand{font-size:15px;gap:6px}
+  .top-actions{gap:4px}
+  .top-actions button,.top-actions label.btn{padding:5px 8px;font-size:12.5px}
+}
 @media (max-width:800px){
   .layout{grid-template-columns:1fr;grid-template-rows:auto 1fr}
   .sidebar{border-right:0;border-bottom:1px solid var(--border)}
@@ -355,6 +369,7 @@ dialog h2{margin:0;font-size:17px}
     연주 비교 노트 <span id="app-ver" class="muted" style="font-size:11.5px;font-weight:400"></span>
   </div>
   <div class="top-actions">
+    <button id="btn-sync" title="아이폰·아이패드 등 여러 기기에서 같은 기록 쓰기"><span id="sync-dot" class="sync-dot off"></span><span id="sync-label">기기 연동</span></button>
     <button id="btn-export" title="모든 작품과 메모를 JSON 파일로 저장">내보내기</button>
     <label class="btn" title="내보낸 JSON 파일 불러오기">불러오기<input type="file" id="file-import" accept=".json,application/json" hidden></label>
   </div>
@@ -531,6 +546,30 @@ dialog h2{margin:0;font-size:17px}
       <div class="row"><button type="button" data-close>취소</button><button type="submit" class="primary">저장</button></div>
     </div>
   </form>
+</dialog>
+
+<dialog id="dlg-sync">
+  <div class="ds-wrap">
+    <div class="ds-head"><h2>아이폰·아이패드 연동</h2><button type="button" class="ghost small" data-close>닫기</button></div>
+    <div id="sync-off">
+      <p class="ds-p">작품·녹음·메모를 GitHub 계정의 <b>비공개 Gist</b>(작은 파일 보관함)에 저장하고, 이 앱을 연 기기들끼리 자동으로 맞춰요. <b>아이폰과 아이패드에서 아래를 한 번씩</b> 해 주세요.</p>
+      <ol class="sync-steps">
+        <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=%EC%97%B0%EC%A3%BC%20%EB%B9%84%EA%B5%90%20%EB%85%B8%ED%8A%B8%20%EB%8F%99%EA%B8%B0%ED%99%94" target="_blank" rel="noopener">GitHub 토큰 만들기 ↗</a>를 열어요(GitHub 로그인 필요). <b>gist</b>에 체크가 된 상태로 열려요.</li>
+        <li><b>Expiration</b>(만료)은 <b>No expiration</b> 또는 1년으로 고르고, 맨 아래 <b>Generate token</b>을 눌러요.</li>
+        <li><code>ghp_</code>로 시작하는 토큰을 복사해 아래에 붙여넣어요. 토큰은 한 번만 보여 주니 메모해 두고, <b>다른 기기에도 같은 토큰</b>을 넣으세요.</li>
+      </ol>
+      <label class="field"><span>GitHub 토큰</span><input id="sync-token" type="text" placeholder="ghp_…" autocomplete="off" spellcheck="false" autocapitalize="off"></label>
+      <div class="err" id="sync-err"></div>
+      <div class="row"><button type="button" class="primary" id="sync-connect">연결하고 동기화</button></div>
+      <p class="ex-small">이 토큰으로는 Gist만 읽고 쓸 수 있어요. 기록이 담긴 Gist는 비공개라 목록에 나오지 않지만, 주소를 아는 사람은 볼 수 있어요. 유튜브 API 키는 올라가지 않아요. 이미 두 기기에 따로 만든 작품이 있으면 둘 다 합쳐져요.</p>
+    </div>
+    <div id="sync-on" hidden>
+      <p class="ds-p" id="sync-state"></p>
+      <div class="row"><button type="button" class="primary" id="sync-now">지금 동기화</button><a class="ds-ext" id="sync-gist-link" target="_blank" rel="noopener">저장된 Gist 보기 ↗</a></div>
+      <p class="ex-small">앱을 열 때, 다른 앱에 갔다가 돌아올 때, 무언가 고친 뒤 몇 초 뒤에 자동으로 맞춰요. 두 기기에서 같은 작품을 거의 동시에 고치면 나중에 고친 쪽이 남아요.</p>
+      <div class="dlg-actions"><button type="button" class="ghost danger" id="sync-disconnect">이 기기 연동 해제</button><span></span></div>
+    </div>
+  </div>
 </dialog>
 
 <dialog id="dlg-split">
@@ -1249,16 +1288,18 @@ function findExpert(p){
 const emptyFilter = () => ({ conductor: '', performer: '', ensemble: '', live: '', yFrom: '', yTo: '' });
 function newPiece(title, composer, names, kind, instr){
   const g = guessKind(title) || { kind: 'other', instr: 'any' };
-  return { id: uid(), title, composer, kind: kind || g.kind, instr: instr || g.instr, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true, relaySecs: [], relayOrder: 'section' } };
+  return { id: uid(), updatedAt: Date.now(), title, composer, kind: kind || g.kind, instr: instr || g.instr, sections: names.map(n => ({ id: uid(), name: n })), recordings: [], view: { f: emptyFilter(), excluded: [], sort: 'added', open: true, relaySecs: [], relayOrder: 'section' } };
 }
 function seedState(){
   const p = newPiece('교향곡 5번 c단조, Op. 67', '베토벤', ['1악장 Allegro con brio', '2악장 Andante con moto', '3악장 Allegro', '4악장 Allegro']);
-  return { pieces: [p], currentId: p.id };
+  p.seed = true; p.updatedAt = 1; // the starter piece; replaced by real data from another device
+  return { pieces: [p], currentId: p.id, deleted: {} };
 }
 function normalizePiece(p){
   p.id = p.id || uid();
   p.title = p.title || '제목 없음';
   p.composer = p.composer || '';
+  p.updatedAt = isNum(p.updatedAt) ? p.updatedAt : 1;
   if (!KIND_NAMES[p.kind] || !INSTR_NAMES[p.instr]) { const g = guessKind(p.title) || { kind: 'other', instr: 'any' }; if (!KIND_NAMES[p.kind]) p.kind = g.kind; if (!INSTR_NAMES[p.instr]) p.instr = g.instr; }
   p.sections = Array.isArray(p.sections) && p.sections.length ? p.sections.map(s => ({ id: s.id || uid(), name: s.name || '구간' })) : [{ id: uid(), name: '전체' }];
   p.recordings = (Array.isArray(p.recordings) ? p.recordings : []).filter(r => r && r.videoId).map(r => ({
@@ -1290,8 +1331,10 @@ function loadState(){
 }
 let state = loadState();
 let saveTimer, dirty = false;
-function save(){
+// save() = the user changed something in the open piece; save(true) = automatic bookkeeping (durations, colours)
+function save(quiet){
   dirty = true;
+  if (!quiet) { const p = cur(); if (p) { p.updatedAt = Date.now(); delete p.seed; } scheduleSync(); }
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flush, 250);
 }
@@ -1299,6 +1342,120 @@ function flush(){ clearTimeout(saveTimer); if (!dirty) return; dirty = false; tr
 addEventListener('pagehide', flush);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
 const cur = () => state.pieces.find(p => p.id === state.currentId) || null;
+/* ---------- sync between devices through one private GitHub Gist ---------- */
+const SYNC_KEY = 'perf-compare-sync', GIST_FILE = 'perf-compare.json', GIST_DESC = '연주 비교 노트 동기화 (perf-compare)';
+const syncCfg = (() => { try { return JSON.parse(localStorage.getItem(SYNC_KEY)) || {}; } catch (e) { return {}; } })();
+const saveSyncCfg = () => { try { localStorage.setItem(SYNC_KEY, JSON.stringify(syncCfg)); } catch (e) {} };
+const syncSt = { busy: false, again: false, timer: null };
+function scheduleSync(delay = 4000){ if (!syncCfg.token) return; clearTimeout(syncSt.timer); syncSt.timer = setTimeout(() => runSync('auto'), delay); }
+async function gh(path, opts = {}){
+  let res;
+  try {
+    res = await fetch('https://api.github.com' + path, { ...opts, cache: 'no-store',
+      headers: { Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + syncCfg.token, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+  } catch (e) { throw { kind: 'network' }; }
+  if (!res.ok) throw { kind: 'http', status: res.status };
+  return res.status === 204 ? null : res.json();
+}
+const syncPayload = () => JSON.stringify({ app: 'perf-compare', version: 2, savedAt: Date.now(), pieces: state.pieces, deleted: state.deleted || {} });
+async function findOrCreateGist(){
+  if (syncCfg.gistId) return syncCfg.gistId;
+  for (let page = 1; page <= 5; page++) {
+    const list = await gh(`/gists?per_page=100&page=${page}`);
+    const g = list.find(x => x.files && x.files[GIST_FILE]);
+    if (g) { syncCfg.gistId = g.id; saveSyncCfg(); return g.id; }
+    if (list.length < 100) break;
+  }
+  const g = await gh('/gists', { method: 'POST', body: JSON.stringify({ description: GIST_DESC, public: false, files: { [GIST_FILE]: { content: syncPayload() } } }) });
+  syncCfg.gistId = g.id; saveSyncCfg();
+  return g.id;
+}
+async function readGist(id){
+  const g = await gh('/gists/' + id);
+  const f = g.files?.[GIST_FILE]; if (!f) return { pieces: [], deleted: {} };
+  let text = f.content;
+  if (f.truncated && f.raw_url) { const r = await fetch(f.raw_url, { cache: 'no-store' }); text = await r.text(); }
+  try { return JSON.parse(text); } catch (e) { return { pieces: [], deleted: {} }; }
+}
+const pieceSig = (pieces, del) => JSON.stringify([pieces.map(p => p.id + ':' + (p.updatedAt || 0)).sort(), Object.entries(del || {}).sort()]);
+// Newer piece wins (per piece). Deletions are kept as tombstones so a deleted piece doesn't come back.
+function mergeRemote(remote){
+  const del = { ...(state.deleted || {}) };
+  for (const [k, v] of Object.entries(remote?.deleted || {})) del[k] = Math.max(del[k] || 0, v);
+  const remotePieces = (remote?.pieces || []).filter(p => p && p.id);
+  const remoteById = new Map(remotePieces.map(p => [p.id, p]));
+  const localIds = new Set(state.pieces.map(p => p.id));
+  const realLocal = state.pieces.some(p => !p.seed), realRemote = remotePieces.some(p => !p.seed);
+  const gone = p => del[p.id] && del[p.id] >= (p.updatedAt || 0);
+  const out = [];
+  for (const lp of state.pieces) {
+    const rp = remoteById.get(lp.id);
+    if (lp.seed && !rp && realRemote) continue; // untouched starter piece on a new device
+    const pick = rp && (rp.updatedAt || 0) > (lp.updatedAt || 0) ? normalizePiece(JSON.parse(JSON.stringify(rp))) : lp;
+    if (!gone(pick)) out.push(pick);
+  }
+  for (const rp of remotePieces) {
+    if (localIds.has(rp.id) || gone(rp) || (rp.seed && realLocal)) continue;
+    out.push(normalizePiece(JSON.parse(JSON.stringify(rp))));
+  }
+  const changedRemote = pieceSig(out, del) !== pieceSig(remotePieces, remote?.deleted);
+  const changedLocal = pieceSig(out, del) !== pieceSig(state.pieces, state.deleted);
+  if (changedLocal) {
+    const before = cur();
+    state.pieces = out; state.deleted = del;
+    if (!state.pieces.some(p => p.id === state.currentId)) state.currentId = state.pieces[0]?.id || null;
+    dirty = true; flush();
+    const after = cur();
+    if (after?.id !== before?.id) { stopAll(); Object.keys(players).forEach(destroyPlayer); $('#rec-grid').innerHTML = ''; ui.sectionId = null; }
+    if (after !== before) renderAll(); else renderSidebar();
+  }
+  return { changedRemote, changedLocal };
+}
+async function runSync(reason){
+  if (!syncCfg.token) return;
+  if (syncSt.busy) { syncSt.again = true; return; }
+  if (reason === 'auto' && document.querySelector('dialog[open]:not(#dlg-sync)')) { scheduleSync(5000); return; }
+  syncSt.busy = true; setSyncStatus('busy');
+  try {
+    flush();
+    let id = await findOrCreateGist(), remote;
+    try { remote = await readGist(id); }
+    catch (e) { if (e.status !== 404) throw e; syncCfg.gistId = null; saveSyncCfg(); id = await findOrCreateGist(); remote = await readGist(id); }
+    const r = mergeRemote(remote);
+    if (r.changedRemote) await gh('/gists/' + id, { method: 'PATCH', body: JSON.stringify({ files: { [GIST_FILE]: { content: syncPayload() } } }) });
+    syncCfg.last = Date.now(); syncCfg.lastError = ''; saveSyncCfg();
+    setSyncStatus('ok');
+    if (r.changedLocal && reason !== 'start') toast('다른 기기에서 바뀐 내용을 가져왔어요.');
+    return true;
+  } catch (e) {
+    const msg = e.kind === 'network' ? '인터넷에 연결되지 않아 동기화하지 못했어요.'
+      : e.status === 401 ? '토큰이 맞지 않거나 만료됐어요. ‘기기 연동’에서 토큰을 다시 넣어 주세요.'
+      : e.status === 404 ? '토큰에 gist 권한이 없어요. gist에 체크해서 토큰을 다시 만들어 주세요.'
+      : e.status === 403 || e.status === 429 ? 'GitHub 요청 한도에 걸렸어요. 잠시 뒤 다시 시도할게요.'
+      : `동기화 중 오류가 났어요${e.status ? ` (${e.status})` : ''}.`;
+    syncCfg.lastError = msg; saveSyncCfg(); setSyncStatus('error');
+    return false;
+  } finally {
+    syncSt.busy = false;
+    if (syncSt.again) { syncSt.again = false; scheduleSync(1000); }
+  }
+}
+const hhmm = t => { const d = new Date(t); return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+function setSyncStatus(st){
+  const on = !!syncCfg.token, label = $('#sync-label'), dot = $('#sync-dot');
+  const s = !on ? 'off' : st || (syncCfg.lastError ? 'error' : syncCfg.last ? 'ok' : 'idle');
+  dot.className = 'sync-dot ' + s;
+  label.textContent = s === 'off' ? '기기 연동' : s === 'busy' ? '동기화 중…' : s === 'error' ? '동기화 오류' : syncCfg.last ? `동기화 ${hhmm(syncCfg.last)}` : '기기 연동';
+  if (!$('#dlg-sync').open) return;
+  $('#sync-off').hidden = on; $('#sync-on').hidden = !on;
+  if (on) {
+    $('#sync-state').innerHTML = s === 'busy' ? '동기화하는 중이에요…'
+      : syncCfg.lastError ? `<b style="color:var(--danger)">${esc(syncCfg.lastError)}</b>`
+      : syncCfg.last ? `연결돼 있어요. 마지막 동기화: <b>${new Date(syncCfg.last).toLocaleString('ko-KR')}</b> · 작품 ${state.pieces.length}개` : '연결돼 있어요.';
+    const a = $('#sync-gist-link'); a.hidden = !syncCfg.gistId; if (syncCfg.gistId) a.href = `https://gist.github.com/${syncCfg.gistId}`;
+  }
+}
+
 function nextSlot(p, except){
   const used = new Set(p.recordings.filter(r => r !== except && isNum(r.slot)).map(r => r.slot));
   for (let i = 0; i < 8; i++) if (!used.has(i)) return i;
@@ -1348,7 +1505,7 @@ function ensureColors(p){
     }
     if (r.slot !== slot) { r.slot = slot; changed = true; }
   });
-  if (changed) save();
+  if (changed) save(true);
 }
 const findRec = id => cur()?.recordings.find(r => r.id === id) || null;
 
@@ -1435,7 +1592,7 @@ function onPlayerReady(id){
     const title = e.player.getVideoData?.().title;
     if (title) rec.videoTitle = title;
   } catch (err) {}
-  save(); updateCardTitle(rec);
+  save(true); updateCardTitle(rec);
 }
 function onPlayerState(id, st){
   if (st === 1) { // playing
@@ -1444,7 +1601,7 @@ function onPlayerState(id, st){
     if (ui.relay && !ui.relay.pending && ui.relay.queue[ui.relay.i]?.rid !== id) stopRelay();
     ui.activeRecId = id;
     const rec = findRec(id), e = players[id];
-    if (rec && e && !isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(); } }
+    if (rec && e && !isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(true); } }
     markPlaying();
   } else if (st === 0) { // ended
     if (ui.relay && ui.relay.queue[ui.relay.i]?.rid === id) relayNext();
@@ -1602,7 +1759,7 @@ setInterval(() => {
     const tEl = card.querySelector('[data-role=time]'), sEl = card.querySelector('[data-role=nowsec]');
     if (tEl) tEl.textContent = fmt(t) + (isNum(rec.duration) ? ` / ${fmt(rec.duration)}` : '');
     if (sEl) { const sid = sectionAt(p, rec, t); sEl.textContent = sid ? `${secIndex(p, sid) + 1}. ${secName(p, sid)}` : ''; }
-    if (!isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(); } }
+    if (!isNum(rec.duration)) { const d = e.player.getDuration(); if (d > 0) { rec.duration = d; save(true); } }
   }
   // live chip
   const act = findRec(ui.activeRecId);
@@ -2307,8 +2464,9 @@ $('#btn-del-piece').addEventListener('click', () => {
   if (!confirm(`‘${p.title}’ 작품과 녹음 ${p.recordings.length}개, 메모를 모두 지울까요?`)) return;
   stopAll(); Object.keys(players).forEach(destroyPlayer); $('#rec-grid').innerHTML = '';
   state.pieces = state.pieces.filter(x => x !== p);
+  state.deleted = state.deleted || {}; state.deleted[p.id] = Date.now();
   state.currentId = state.pieces[0]?.id || null; ui.sectionId = null;
-  $('#dlg-piece').close(); save(); renderAll();
+  $('#dlg-piece').close(); save(true); scheduleSync(800); renderAll();
 });
 
 let editingRec = null;
@@ -2388,13 +2546,14 @@ $('#file-import').addEventListener('change', async e => {
     if (!Array.isArray(pieces)) throw new Error('형식');
     let added = 0, replaced = 0;
     pieces.forEach(raw => {
-      const p = normalizePiece(raw);
+      const p = normalizePiece(raw); p.updatedAt = Date.now(); delete p.seed;
+      if (state.deleted) delete state.deleted[p.id];
       const i = state.pieces.findIndex(x => x.id === p.id);
       if (i >= 0) { state.pieces[i] = p; replaced++; } else { state.pieces.push(p); added++; }
     });
     stopAll(); Object.keys(players).forEach(destroyPlayer); $('#rec-grid').innerHTML = '';
     if (!cur()) state.currentId = state.pieces[0]?.id || null;
-    save(); renderAll();
+    save(true); scheduleSync(1000); renderAll();
     toast(`불러왔어요: 새 작품 ${added}개${replaced ? `, 덮어쓴 작품 ${replaced}개` : ''}`);
   } catch (err) { toast('이 파일은 불러올 수 없어요. 이 앱에서 내보낸 JSON인지 확인해 주세요.'); }
 });
@@ -2744,6 +2903,28 @@ async function checkVersion(){
   } catch (e) {}
 }
 checkVersion();
+$('#btn-sync').addEventListener('click', () => { $('#sync-err').textContent = ''; $('#dlg-sync').showModal(); setSyncStatus(); if (!syncCfg.token) setTimeout(() => $('#sync-token').focus(), 50); });
+$('#sync-connect').addEventListener('click', async () => {
+  const t = $('#sync-token').value.trim();
+  if (!/^(ghp_|github_pat_|gho_)?[\w]{20,}$/.test(t)) { $('#sync-err').textContent = '토큰 모양이 이상해요. ghp_로 시작하는 토큰 전체를 붙여넣어 주세요.'; return; }
+  syncCfg.token = t; syncCfg.gistId = null; syncCfg.last = null; syncCfg.lastError = ''; saveSyncCfg();
+  $('#sync-err').textContent = ''; $('#sync-connect').disabled = true;
+  const ok = await runSync('connect');
+  $('#sync-connect').disabled = false;
+  if (!ok && /토큰/.test(syncCfg.lastError)) { const m = syncCfg.lastError; syncCfg.token = null; saveSyncCfg(); setSyncStatus(); $('#sync-err').textContent = m; return; }
+  setSyncStatus();
+  if (ok) toast('연결했어요. 다른 기기에서도 같은 토큰을 넣어 주세요.');
+});
+$('#sync-token').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('#sync-connect').click(); } });
+$('#sync-now').addEventListener('click', () => runSync('manual'));
+$('#sync-disconnect').addEventListener('click', () => {
+  if (!confirm('이 기기의 연동을 해제할까요? 이 기기에 저장된 기록은 그대로 남아요.')) return;
+  syncCfg.token = null; syncCfg.gistId = null; syncCfg.last = null; syncCfg.lastError = ''; saveSyncCfg(); setSyncStatus(); $('#sync-token').value = '';
+});
+setSyncStatus();
+if (syncCfg.token) runSync('start');
+setInterval(() => { if (syncCfg.token && document.visibilityState === 'visible') runSync('auto'); }, 120000);
+document.addEventListener('visibilitychange', () => { if (!syncCfg.token) return; if (document.visibilityState === 'visible') { if (Date.now() - (syncCfg.last || 0) > 15000) runSync('visible'); } else runSync('hidden'); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkVersion(); });
 
 renderAll();
